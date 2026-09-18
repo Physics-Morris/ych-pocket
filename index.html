@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ych-theme.css">
   <link rel="stylesheet" href="toolbar.css">
+  <script src="tilt.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -26,6 +27,7 @@
         <button type="button" class="toolbar-control" id="sound" aria-label="Turn sound on" aria-pressed="false"><span class="toolbar-icon" aria-hidden="true">♪</span><span id="sound-label">SOUND OFF</span></button>
         <button type="button" class="toolbar-control" id="backgrounds"><span class="toolbar-icon" aria-hidden="true">▧</span><span>SCENE</span></button>
         <button type="button" class="toolbar-control" id="restart"><span class="toolbar-icon" aria-hidden="true">↻</span><span>RESET</span></button>
+        <button type="button" class="toolbar-control" id="tilt-control" aria-label="Phone tilt and gravity controls" aria-pressed="false"><span class="toolbar-icon" aria-hidden="true">↔</span><span id="tilt-label">TILT OFF</span></button>
         <button type="button" class="toolbar-control" id="fullscreen" aria-label="Full screen or browser display options"><span class="toolbar-icon" aria-hidden="true">⛶</span><span id="fullscreen-label">FULL SCREEN</span></button>
       </nav>
     </header>
@@ -40,8 +42,8 @@
           <div class="top-print" aria-hidden="true"><span>POCKET SERIES</span><span>NO. 012</span></div>
           <div class="grip grip-left">
             <div class="grip-top" aria-hidden="true"><span class="emboss-letter">A</span><span class="speaker"></span></div>
-            <div class="pump-socket"><button type="button" class="pump" id="pump-left" aria-label="Left water pump. Keyboard A or left arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
-            <span class="pump-label" aria-hidden="true">LEFT JET</span>
+            <div class="pump-socket"><button type="button" class="pump" id="pump-left" aria-label="Left water pump: pushes up and right. Keyboard A or left arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
+            <span class="pump-label" aria-hidden="true">PUSH RIGHT ↗</span>
             <div class="grip-ridges" aria-hidden="true"></div>
           </div>
 
@@ -50,8 +52,8 @@
               <div class="tank" id="tank">
                 <div class="tank-art" id="tank-art"></div>
                 <div class="water-tint" aria-hidden="true"></div>
-                <canvas id="game" role="img" aria-label="Twelve colorful rings floating in water. Use the left and right pumps to lift them onto the two pink posts."></canvas>
-                <div class="tank-hud"><span class="hud-label">RINGS <strong id="score">00<span> / 12</span></strong></span><span class="water-label">TAKE IT SLOW.</span></div>
+                <canvas id="game" role="img" aria-label="Twelve colorful rings floating in water. Use the left and right pumps to lift them onto the three pink posts."></canvas>
+                <div class="tank-hud"><span class="hud-label">RINGS <strong id="score">00<span> / 12</span></strong></span><span class="water-label" id="water-status">TAKE IT SLOW.</span></div>
                 <div class="glass" aria-hidden="true"></div>
                 <div class="win-message" id="win-message" hidden><span class="win-eyebrow">12 / 12 · YOU DID THAT</span><strong>Small toy. Big win!</strong><button type="button" id="play-again">One more round ↻</button></div>
               </div>
@@ -61,8 +63,8 @@
 
           <div class="grip grip-right">
             <div class="grip-top" aria-hidden="true"><span class="speaker"></span><span class="emboss-letter">B</span></div>
-            <div class="pump-socket"><button type="button" class="pump" id="pump-right" aria-label="Right water pump. Keyboard D or right arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
-            <span class="pump-label" aria-hidden="true">RIGHT JET</span>
+            <div class="pump-socket"><button type="button" class="pump" id="pump-right" aria-label="Right water pump: pushes up and left. Keyboard D or right arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
+            <span class="pump-label" aria-hidden="true">↖ PUSH LEFT</span>
             <div class="grip-ridges" aria-hidden="true"></div>
           </div>
         </div>
@@ -87,7 +89,7 @@
   <dialog id="scene-dialog" class="scene-dialog" aria-labelledby="scene-title">
     <div class="dialog-heading"><div><span class="eyebrow">YOUR OWN LITTLE WORLD</span><h2 id="scene-title">A change of scenery.</h2></div><button type="button" class="close-button" id="close-scenes" aria-label="Close background settings">×</button></div>
     <div class="scene-layout">
-      <div class="preview-column"><div class="scene-preview" id="scene-preview" role="img" aria-label="Background preview. Drag to reposition your photo."><span class="preview-post"></span><span class="preview-post"></span><span class="preview-ring"></span></div><span class="preview-caption" id="preview-caption">The same little toy. A different little world.</span></div>
+      <div class="preview-column"><div class="scene-preview" id="scene-preview" role="img" aria-label="Background preview. Drag to reposition your photo."><span class="preview-post"></span><span class="preview-post"></span><span class="preview-post"></span><span class="preview-ring"></span></div><span class="preview-caption" id="preview-caption">The same little toy. A different little world.</span></div>
       <div class="scene-settings">
         <div class="preset-list" aria-label="Choose tank artwork"><button type="button" class="preset selected" data-scene="ocean" aria-pressed="true"><span class="swatch swatch-ocean"></span>Ocean</button><button type="button" class="preset" data-scene="sunset" aria-pressed="false"><span class="swatch swatch-sunset"></span>Sunset</button><button type="button" class="preset" data-scene="space" aria-pressed="false"><span class="swatch swatch-space"></span>Space</button></div>
         <label class="upload-button" for="photo"><span aria-hidden="true">＋</span> Use your own photo<input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
@@ -99,7 +101,17 @@
     </div>
   </dialog>
 
-  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Press the yellow buttons to send a little jet of water through the tank. Let the rings drift down over the pink posts. Catch all twelve.</p><p>Use both thumbs on a phone, or <kbd>A</kbd> / <kbd>D</kbd> and the arrow keys on a keyboard. Each press gives one little push.</p><p>Use the toolbar above the toy to change the <b>SCENE</b>, toggle <b>SOUND</b>, or <b>RESET</b> for a fresh handful of rings.</p><div class="install-tip"><b>Make it a pocket toy.</b><span>On iPhone, open in Safari, tap Share, then Add to Home Screen. Launch YCH Pocket from its new Home Screen icon and turn your phone sideways.</span></div><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Press the left yellow button to push rings up and right; the right button pushes up and left. Let the heavier rings sink onto any of the three pink posts. Catch all twelve.</p><p>Use both thumbs on a phone, or <kbd>A</kbd> / <kbd>D</kbd> and the arrow keys on a keyboard. Each press gives one little push.</p><p>Tap <b>TILT</b> for gravity play: hold the phone sideways, enable motion, then steer like a racing game. Rings follow real gravity: lower the top edge to lift them, then lower the bottom edge to let them settle. The pumps still work.</p><p>Use the toolbar above the toy to change the <b>SCENE</b>, toggle <b>SOUND</b>, or <b>RESET</b> for a fresh handful of rings.</p><div class="install-tip"><b>Make it a pocket toy.</b><span>On iPhone, open in Safari, tap Share, then Add to Home Screen. Launch YCH Pocket from its new Home Screen icon and turn your phone sideways.</span></div><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
+
+  <dialog id="tilt-dialog" class="help-dialog tilt-dialog" aria-labelledby="tilt-title">
+    <div class="dialog-heading"><div><span class="eyebrow">A LITTLE TWIST. A LITTLE GRAVITY.</span><h2 id="tilt-title">Steer the water.</h2></div><button type="button" class="close-button" id="close-tilt" aria-label="Close tilt controls">×</button></div>
+    <p><b>Real gravity. On by default.</b> Lower an edge of your phone and the rings move that way. Rotate like a steering wheel to guide them <b>left and right</b>. Tip the <b>top edge down</b> to lift them, then lower the <b>bottom edge</b> to settle them onto the three posts.</p>
+    <p id="tilt-status" class="tilt-status" role="status" aria-live="polite">Hold your phone sideways and enable tilt. No calibration needed.</p>
+    <button type="button" class="done-button" id="enable-tilt">Enable phone tilt →</button>
+    <div class="tilt-actions"><button type="button" class="motion-button" id="disable-tilt" hidden>Turn tilt off</button></div>
+    <p class="motion-note">Allow motion access if your phone asks. No installation needed. The yellow pumps work in both modes, and caught rings stay on their posts.</p>
+    <button type="button" class="done-button" id="done-tilt">Back to the water →</button>
+  </dialog>
 
   <dialog id="install-dialog" class="help-dialog install-dialog" aria-labelledby="install-title">
     <div class="dialog-heading"><div><span class="eyebrow">MORE TOY. LESS BROWSER.</span><h2 id="install-title">More room to play.</h2></div><button type="button" class="close-button" id="close-install" aria-label="Close screen options">×</button></div>

@@ -85,3 +85,21 @@
   .rotate-screen p { font-size: 14px; }
   .rotate-fullscreen { margin-top: 16px; }
 }
+
+/* Motion controls keep all utilities above the casing. */
+#tilt-control[aria-pressed="true"] { background: var(--lime); }
+.tilt-status { padding: 10px 12px; border: 1.5px solid var(--ink); background: var(--white); }
+.tilt-status.motion-error { border-color: #9a2d33; color: #822129; }
+.tilt-actions { display: flex; gap: 10px; margin: 12px 0; }
+.motion-button { min-height: 44px; flex: 1; padding: 9px; border: 1.5px solid var(--ink); background: var(--white); box-shadow: 2px 2px var(--ink); font: 700 11px/1.4 var(--mono); }
+.motion-button:hover { background: var(--lime); }
+.tilt-dialog .motion-note { font-size: 11px; color: #6e6656; }
+.scene-preview .preview-post { left: 29.6875%; }
+.scene-preview .preview-post:nth-child(2) { left: 50%; }
+.scene-preview .preview-post:nth-child(3) { left: 70.3125%; }
+.scene-preview .preview-ring { left: calc(29.6875% - 10px); }
+@media (min-width: 981px) and (max-width: 1150px) { .masthead .edition { display: none; } }
+@media (max-width: 740px) and (orientation: landscape) {
+  .game-toolbar { gap: 5px; }
+  .toolbar-control { min-width: 60px; padding: 6px; gap: 3px; }
+}

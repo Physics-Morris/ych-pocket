@@ -9,27 +9,30 @@
   const sceneDialog = $('scene-dialog');
   const helpDialog = $('help-dialog');
   const installDialog = $('install-dialog');
+  const tiltDialog = $('tilt-dialog');
   const portrait = matchMedia('(max-width: 700px) and (orientation: portrait)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const colors = ['#f26974', '#ffdf3f', '#60c379', '#597bd4'];
-  const posts = [{ x: 228, tip: 195, rings: [] }, { x: 412, tip: 195, rings: [] }];
+  const posts = [190, 320, 450].map(x => ({ x, tip: 195, rings: [] }));
+  const tilt = new window.YCHTilt(updateTiltUI);
   const pumpButtons = [$('pump-left'), $('pump-right')];
   const pointers = [new Set(), new Set()];
   const keySides = new Map();
   let rings = [], bubbles = [], pulses = [], caught = 0, tick = 0;
   let accumulator = 0, lastTime = 0, animation = 0;
   let soundEnabled = false, audioContext = null, noiseBuffer = null;
+  let tiltWanted = true, tiltPromptPending = false, closeTiltWhenReady = false;
   let photoURL = null, photoSize = { width: 800, height: 500 };
   let scene = { name: 'ocean', zoom: 1, x: 50, y: 50 };
   const sceneImages = { ocean: 'assets/ocean.svg', sunset: 'assets/sunset.svg', space: 'assets/space.svg' };
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const random = (lo, hi) => lo + Math.random() * (hi - lo);
   const announce = message => { $('announcement').textContent = message; };
-  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || portrait.matches;
+  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || tiltDialog.open || portrait.matches;
 
   function updateScore() {
     $('score').innerHTML = `${String(caught).padStart(2, '0')}<span> / ${TOTAL}</span>`;
-    canvas.setAttribute('aria-label', `${caught} of ${TOTAL} rings caught. Use the left and right pumps to lift the remaining rings onto the pink posts.`);
+    canvas.setAttribute('aria-label', `${caught} of ${TOTAL} rings caught. Use the pumps${tilt.enabled ? ' or tilt your phone' : ''} to guide the remaining rings onto the three pink posts.`);
   }
 
   function reset() {
@@ -48,7 +51,7 @@
     $('win-message').hidden = true;
     updateScore();
     releaseInputs();
-    announce('A fresh handful of rings. Press the yellow buttons to begin.');
+    announce(`A fresh handful of rings. ${tilt.enabled ? 'Tilt your phone or press the yellow buttons' : 'Press the yellow buttons'} to begin.`);
     draw();
   }
 
@@ -114,20 +117,21 @@
   function pump(side) {
     if (paused() || caught === TOTAL) return;
     const sourceX = side === 0 ? 130 : 510;
-    const targetX = posts[side].x;
+    const direction = side === 0 ? 1 : -1;
     for (const ring of rings) {
       if (ring.caught) continue;
       const dx = Math.abs(ring.x - sourceX);
       const proximity = Math.exp(-(dx * dx) / (2 * 165 * 165));
       const height = .55 + .45 * (ring.y / H);
       const force = proximity * height;
-      ring.vy = Math.max(-570, ring.vy - (505 + random(-25, 25)) * force);
-      ring.vx += (clamp((targetX - ring.x) * .9, -125, 125) + random(-25, 25)) * force;
-      ring.spin += random(-4, 4) * force;
+      ring.vy = Math.max(-550, ring.vy - (480 + random(-18, 18)) * force);
+      // Each jet drives across the tank, regardless of the nearest post.
+      ring.vx = clamp(ring.vx + direction * (220 + random(-15, 15)) * force, -380, 380);
+      ring.spin += random(-2.5, 2.5) * force;
     }
-    pulses.push({ x: sourceX, age: 0 });
+    pulses.push({ x: sourceX, direction, age: 0 });
     for (let i = 0; i < (reducedMotion.matches ? 5 : 18); i++) {
-      bubbles.push({ x: sourceX + random(-20, 20), y: H - 12 + random(-8, 8), vx: random(-27, 27), vy: random(-175, -85), r: random(1.5, 5), age: 0, life: random(.7, 1.8) });
+      bubbles.push({ x: sourceX + random(-20, 20), y: H - 12 + random(-8, 8), vx: direction * random(45, 90), vy: random(-175, -85), r: random(1.5, 5), age: 0, life: random(.7, 1.8) });
     }
     if (bubbles.length > 180) bubbles.splice(0, bubbles.length - 180);
     if (pulses.length > 20) pulses.shift();
@@ -148,6 +152,7 @@
 
   function step(dt) {
     tick += dt;
+    const gravity = tilt.sample(dt);
     for (const ring of rings) {
       if (ring.caught) {
         ring.age += dt;
@@ -158,9 +163,9 @@
         continue;
       }
       const previousY = ring.y;
-      ring.vx += Math.sin(tick * 1.4 + ring.y * .025) * 8 * dt;
+      ring.vx += (gravity.x + Math.sin(tick * 1.4 + ring.y * .025) * 4) * dt;
       ring.vx *= Math.exp(-1.13 * dt);
-      ring.vy += 132 * dt;
+      ring.vy += gravity.y * dt;
       ring.vy *= Math.exp(-1.12 * dt);
       ring.spin *= Math.exp(-1.4 * dt);
       ring.angle += ring.spin * dt;
@@ -172,7 +177,7 @@
       if (ring.y < RADIUS + 7) { ring.y = RADIUS + 7; ring.vy = Math.abs(ring.vy) * .25; }
       if (ring.y > H - RADIUS - 9) {
         ring.y = H - RADIUS - 9;
-        ring.vy = ring.vy > 18 ? -ring.vy * .22 : 0;
+        ring.vy = ring.vy > 24 ? -ring.vy * .12 : 0;
         ring.vx *= Math.exp(-5 * dt);
         ring.spin *= Math.exp(-5 * dt);
       }
@@ -276,7 +281,7 @@
     for (const pulse of pulses) {
       ctx.strokeStyle = `rgba(207,255,255,${(.5 - pulse.age) * .35})`;
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(pulse.x, H - 16 - pulse.age * 110, 14 + pulse.age * 65, 5 + pulse.age * 10, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(pulse.x + pulse.direction * pulse.age * 90, H - 16 - pulse.age * 110, 14 + pulse.age * 65, 5 + pulse.age * 10, 0, 0, Math.PI * 2); ctx.stroke();
     }
     for (const bubble of bubbles) {
       const alpha = Math.min(.65, (bubble.life - bubble.age) * 1.5);
@@ -360,8 +365,8 @@
     keySides.delete(key); setPressed(side);
   });
   window.addEventListener('blur', releaseInputs);
-  document.addEventListener('visibilitychange', () => { releaseInputs(); lastTime = 0; });
-  portrait.addEventListener('change', () => { releaseInputs(); lastTime = 0; resize(); });
+  document.addEventListener('visibilitychange', () => { releaseInputs(); lastTime = 0; if (!document.hidden) tilt.refresh(); });
+  portrait.addEventListener('change', () => { releaseInputs(); lastTime = 0; resize(); showDefaultTiltPrompt(); });
 
   $('restart').addEventListener('click', reset);
   $('play-again').addEventListener('click', reset);
@@ -384,6 +389,41 @@
   $('close-install').addEventListener('click', () => installDialog.close());
   $('got-install').addEventListener('click', () => installDialog.close());
   $('portrait-fullscreen').addEventListener('click', () => openDialog(installDialog));
+
+  function updateTiltUI() {
+    $('tilt-control').setAttribute('aria-pressed', String(tilt.ready));
+    $('tilt-label').textContent = tilt.ready ? 'TILT ON' : tilt.enabled ? 'TILT WAIT' : tiltPromptPending ? 'ENABLE TILT' : 'TILT OFF';
+    $('water-status').textContent = tilt.ready ? 'TILT TO STEER' : 'TAKE IT SLOW.';
+    $('enable-tilt').hidden = tilt.enabled;
+    $('enable-tilt').disabled = tilt.requesting;
+    $('enable-tilt').textContent = tilt.requesting ? 'Waiting for permission…' : 'Enable phone tilt →';
+    $('disable-tilt').hidden = !tilt.enabled && !tilt.requesting;
+    $('tilt-status').textContent = tilt.error || (tilt.ready ? 'Ready! Rings follow real gravity toward the lower edge. No calibration needed.' : tilt.enabled ? 'Waiting for your phone’s motion sensor…' : tilt.requesting ? 'Allow Motion & Orientation Access if your phone asks.' : 'Hold your phone sideways and enable tilt. No calibration needed.');
+    $('tilt-status').classList.toggle('motion-error', Boolean(tilt.error));
+    updateScore();
+    if (tilt.ready && closeTiltWhenReady) {
+      closeTiltWhenReady = false;
+      tiltDialog.close();
+      announce('Gravity mode is on. Lower an edge to guide rings that way.');
+    }
+  }
+  function rememberTilt(enabled) {
+    tiltWanted = enabled;
+    try { localStorage.setItem('ych-tilt-enabled', String(enabled)); } catch { /* Preference is optional. */ }
+  }
+  function showDefaultTiltPrompt() {
+    if (!tiltPromptPending || paused()) return;
+    tiltPromptPending = false;
+    updateTiltUI();
+    openDialog(tiltDialog);
+  }
+  $('tilt-control').addEventListener('click', () => { updateTiltUI(); openDialog(tiltDialog); });
+  $('enable-tilt').addEventListener('click', () => { rememberTilt(true); closeTiltWhenReady = true; tilt.start(); });
+  $('disable-tilt').addEventListener('click', () => { rememberTilt(false); closeTiltWhenReady = false; tilt.stop(); });
+  $('close-tilt').addEventListener('click', () => tiltDialog.close());
+  $('done-tilt').addEventListener('click', () => tiltDialog.close());
+  tiltDialog.addEventListener('close', () => { closeTiltWhenReady = false; if (tilt.requesting) tilt.stop(); });
+  updateTiltUI();
 
   const standaloneMode = matchMedia('(display-mode: standalone)');
   const fullscreenMode = matchMedia('(display-mode: fullscreen)');
@@ -421,7 +461,7 @@
   fullscreenMode.addEventListener('change', updateScreenMode);
   updateScreenMode();
 
-  [sceneDialog, helpDialog, installDialog].forEach(dialog => {
+  [sceneDialog, helpDialog, installDialog, tiltDialog].forEach(dialog => {
     let downOutside = false;
     const outside = event => {
       const rect = dialog.getBoundingClientRect();
@@ -429,7 +469,7 @@
     };
     dialog.addEventListener('pointerdown', event => { downOutside = outside(event); });
     dialog.addEventListener('pointerup', event => { if (downOutside && outside(event)) dialog.close(); downOutside = false; });
-    dialog.addEventListener('close', () => { lastTime = 0; persistScene(); });
+    dialog.addEventListener('close', () => { lastTime = 0; persistScene(); showDefaultTiltPrompt(); });
   });
 
   function sceneDimensions(element) {
@@ -550,6 +590,7 @@
       scene = { name: saved.name === 'photo' && !photoURL ? 'ocean' : saved.name, zoom: clamp(Number(saved.zoom) || 1, 1, 2.5), x: clamp(Number.isFinite(saved.x) ? saved.x : 50, 0, 100), y: clamp(Number.isFinite(saved.y) ? saved.y : 50, 0, 100) };
     }
     soundEnabled = localStorage.getItem('aqua-sound') === 'true';
+    tiltWanted = localStorage.getItem('ych-tilt-enabled') !== 'false';
     $('sound').setAttribute('aria-pressed', String(soundEnabled));
     $('sound').setAttribute('aria-label', `Turn sound ${soundEnabled ? 'off' : 'on'}`);
     $('sound-label').textContent = `SOUND ${soundEnabled ? 'ON' : 'OFF'}`;
@@ -558,8 +599,16 @@
   new ResizeObserver(resize).observe(tank);
   new ResizeObserver(() => { if (sceneDialog.open) renderScene(); }).observe(preview);
   reset(); resize();
+  if (tiltWanted && window.isSecureContext && window.DeviceOrientationEvent) {
+    if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
+      // iPhone needs a user gesture; offer it as the default way to start playing.
+      tiltPromptPending = true;
+      updateTiltUI();
+      showDefaultTiltPrompt();
+    } else tilt.start();
+  }
   animation = requestAnimationFrame(frame);
-  window.addEventListener('pagehide', () => { cancelAnimationFrame(animation); releaseInputs(); });
+  window.addEventListener('pagehide', () => { cancelAnimationFrame(animation); releaseInputs(); tilt.stop(); });
   window.addEventListener('pageshow', event => { if (event.persisted) { lastTime = 0; animation = requestAnimationFrame(frame); } });
   if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker.register('sw.js').catch(() => { /* Offline install is optional. */ });

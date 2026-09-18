@@ -9,6 +9,8 @@ for(const [id,w,h] of [['landscape',844,390],['compact',667,375],['short',844,29
 window.addEventListener('resize',fit);fit();
 frame.onload=async()=>{try{
  const doc=frame.contentDocument,win=frame.contentWindow;
+ // The default iPhone-style permission guide is intentionally modal before play.
+ if(doc.querySelector('#tilt-dialog').open){check('Default gravity setup is shown before play',doc.querySelector('#tilt-dialog').textContent.includes('On by default'));doc.querySelector('#done-tilt').click();await paint()}
  for(const [w,h] of [[844,390],[852,393],[667,375],[844,290],[667,260]]){
   await size(w,h);
   const shell=doc.querySelector('.shell').getBoundingClientRect();
@@ -28,6 +30,30 @@ frame.onload=async()=>{try{
  for(const [name] of fullscreenDescriptors)Object.defineProperty(root,name,{value:undefined,configurable:true});
  doc.querySelector('#fullscreen').click();await paint();check('Unavailable fullscreen offers no-install guidance and an honest button label',doc.querySelector('#install-dialog').open&&doc.querySelector('#fullscreen-label').textContent==='MORE SCREEN'&&doc.querySelector('#install-dialog').textContent.includes('No installation needed'));doc.querySelector('#got-install').click();
  for(const [name,descriptor] of fullscreenDescriptors){if(descriptor)Object.defineProperty(root,name,descriptor);else delete root[name]}
+ // Motion UI checks use a synthetic sensor; no real browser permissions are requested.
+ const sensorDescriptor=Object.getOwnPropertyDescriptor(win,'DeviceOrientationEvent');
+ Object.defineProperty(win,'DeviceOrientationEvent',{value:{requestPermission:async()=> 'granted'},configurable:true});
+ doc.querySelector('#tilt-control').click();await paint();
+ if(!doc.querySelector('#disable-tilt').hidden)doc.querySelector('#disable-tilt').click();
+ await size(844,290);
+ const tiltDialog=doc.querySelector('#tilt-dialog');
+ check('Tilt instructions fit short landscape and remain scrollable',tiltDialog.open&&tiltDialog.getBoundingClientRect().height<=290&&win.getComputedStyle(tiltDialog).overflowY==='auto');
+ doc.querySelector('#enable-tilt').click();await paint();
+ const motion=(beta,gamma)=>{const e=new win.Event('deviceorientation');Object.defineProperties(e,{beta:{value:beta},gamma:{value:gamma}});win.dispatchEvent(e)};
+ motion(0,-45);await paint();
+ check('Allowed sensor starts tilt and returns to the game',doc.querySelector('#tilt-label').textContent==='TILT ON'&&!tiltDialog.open);
+ motion(20,-45);
+ doc.querySelector('#tilt-control').click();await paint();
+ check('Tilt uses real gravity without calibration',doc.querySelector('#tilt-status').textContent.includes('No calibration needed')&&doc.querySelector('#score').textContent.startsWith('00'));
+ doc.querySelector('#disable-tilt').click();
+ check('Tilt can be switched off',doc.querySelector('#tilt-control').getAttribute('aria-pressed')==='false'&&doc.querySelector('#tilt-label').textContent==='TILT OFF');
+ Object.defineProperty(win,'DeviceOrientationEvent',{value:{requestPermission:async()=> 'denied'},configurable:true});
+ doc.querySelector('#enable-tilt').click();await paint();
+ check('Denied motion access explains the pump fallback',doc.querySelector('#tilt-status').textContent.includes('wasn’t allowed')&&doc.querySelector('#tilt-control').getAttribute('aria-pressed')==='false');
+ doc.querySelector('#done-tilt').click();
+ if(sensorDescriptor)Object.defineProperty(win,'DeviceOrientationEvent',sensorDescriptor);else delete win.DeviceOrientationEvent;
+ check('Scene preview shows three catching posts',doc.querySelectorAll('.preview-post').length===3);
+ await size(844,390);
  doc.querySelector('#sound').click();check('Toolbar sound control still works',doc.querySelector('#sound').getAttribute('aria-pressed')==='true');doc.querySelector('#sound').click();
  doc.querySelector('#backgrounds').click();await paint();
  check('Scene dialog opens',doc.querySelector('#scene-dialog').open);
@@ -45,6 +71,7 @@ frame.onload=async()=>{try{
  doc.querySelector('[data-scene="ocean"]').click();doc.querySelector('#done-scenes').click();
  check('Closing settings resumes game',!dialog.open);
  doc.querySelector('#restart').click();check('Reset returns score to zero',doc.querySelector('#score').textContent.startsWith('00'));
+ win.localStorage.removeItem('ych-tilt-enabled');
  await size(844,390);document.getElementById('status').textContent=failures?`${failures} checks failed.`:'All browser checks passed. Select a size to inspect the real layout.';
  }catch(error){check('Browser test execution: '+error.message,false);document.getElementById('status').textContent='Browser checks stopped: '+error.message}};
 </script></html>
