@@ -1,8 +1,5 @@
 /* Utility controls live outside the toy, where the rounded shell cannot clip them. */
 .masthead { gap: 20px; }
-.brand-games { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.game-next { display: inline-flex; align-items: center; min-height: 44px; font: 700 9px var(--mono); color: var(--ink); text-decoration: none; }
-.game-next:hover { color: var(--blue); }
 .masthead .edition { margin-right: auto; }
 .game-toolbar { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
 .toolbar-control {
@@ -51,8 +48,6 @@
   }
   .masthead .edition { display: none; }
   .wordmark { font-size: 24px; }
-  .brand-games { gap: 8px; }
-  .game-next { font-size: 8px; }
   .game-toolbar { gap: 7px; }
   .toolbar-control { min-width: 65px; min-height: 44px; padding: 6px 9px; font-size: 9px; gap: 5px; }
   .toolbar-icon { font-size: 18px; }

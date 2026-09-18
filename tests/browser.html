@@ -85,5 +85,5 @@ frame.onload=async()=>{try{
  doc.querySelector('#restart').click();check('Reset returns score to zero',doc.querySelector('#score').textContent.startsWith('00'));
  win.localStorage.removeItem('ych-tilt-enabled');
  await size(844,390);document.getElementById('status').textContent=failures?`${failures} checks failed.`:'All browser checks passed. Select a size to inspect the real layout.';
- }catch(error){check('Browser test execution: '+error.message,false);document.getElementById('status').textContent='Browser checks stopped: '+error.message}finally{if(location.port==='8001')fetch('/__checks/water',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({suite:'water',status:document.getElementById('status').textContent,checks:[...document.querySelectorAll('#results li')].map(el=>el.textContent)})}).catch(()=>{})}};
+ }catch(error){check('Browser test execution: '+error.message,false);document.getElementById('status').textContent='Browser checks stopped: '+error.message}};
 </script></html>
