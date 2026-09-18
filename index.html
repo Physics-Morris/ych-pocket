@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#EFEBE0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="YCH Pocket">
+  <meta name="description" content="A little throwback. A playable water ring-toss toy, made for two thumbs and an iPhone turned sideways.">
+  <title>YCH Pocket — A little throwback</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ych-theme.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="app">
+    <header class="masthead">
+      <a class="wordmark" href="./" aria-label="YCH Pocket home">YCH</a>
+      <span class="edition">水中套圈圈 · POCKET WATER GAME</span>
+    </header>
+
+    <section class="play-area" aria-label="Water ring-toss game">
+      <div class="game-heading"><div><span class="game-index">01 ↳ THE GOOD OLD DAYS</span><h1>Small toy. Big nostalgia.</h1></div><span class="game-sticker">NO BATTERIES.<br>JUST GOOD VIBES.</span></div>
+      <div class="machine">
+        <div class="strap strap-left" aria-hidden="true"></div>
+        <div class="strap strap-right" aria-hidden="true"></div>
+        <div class="shell">
+          <div class="shell-seam" aria-hidden="true"></div>
+          <div class="top-print" aria-hidden="true"><span>POCKET SERIES</span><span>NO. 012</span></div>
+          <div class="grip grip-left">
+            <div class="grip-top" aria-hidden="true"><span class="emboss-letter">A</span><span class="speaker"></span></div>
+            <div class="pump-socket"><button type="button" class="pump" id="pump-left" aria-label="Left water pump. Keyboard A or left arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
+            <span class="pump-label" aria-hidden="true">LEFT JET</span>
+            <button type="button" class="small-control sound-control" id="sound" aria-label="Turn sound on" aria-pressed="false"><span class="sound-glyph" aria-hidden="true">♪</span><span id="sound-label">SOUND OFF</span></button>
+            <div class="grip-ridges" aria-hidden="true"></div>
+          </div>
+
+          <div class="center-body">
+            <div class="tank-bezel">
+              <div class="tank" id="tank">
+                <div class="tank-art" id="tank-art"></div>
+                <div class="water-tint" aria-hidden="true"></div>
+                <canvas id="game" role="img" aria-label="Twelve colorful rings floating in water. Use the left and right pumps to lift them onto the two pink posts."></canvas>
+                <div class="tank-hud"><span class="hud-label">RINGS <strong id="score">00<span> / 12</span></strong></span><span class="water-label">TAKE IT SLOW.</span></div>
+                <div class="glass" aria-hidden="true"></div>
+                <div class="win-message" id="win-message" hidden><span class="win-eyebrow">12 / 12 · YOU DID THAT</span><strong>Small toy. Big win!</strong><button type="button" id="play-again">One more round ↻</button></div>
+              </div>
+            </div>
+            <div class="machine-brand" aria-hidden="true"><span>YCH<span class="brand-dot">✳</span></span><div>POCKET<br><b>WATER GAME</b></div></div>
+          </div>
+
+          <div class="grip grip-right">
+            <div class="grip-top" aria-hidden="true"><span class="speaker"></span><span class="emboss-letter">B</span></div>
+            <div class="pump-socket"><button type="button" class="pump" id="pump-right" aria-label="Right water pump. Keyboard D or right arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
+            <span class="pump-label" aria-hidden="true">RIGHT JET</span>
+            <div class="utility-controls"><button type="button" class="small-control" id="backgrounds"><span class="control-symbol" aria-hidden="true">▧</span><span>SCENE</span></button><button type="button" class="small-control" id="restart"><span class="control-symbol" aria-hidden="true">↻</span><span>RESET</span></button></div>
+            <div class="grip-ridges" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+      <div class="play-caption"><span>Two thumbs. Twelve rings. No rush.</span><span class="keyboard-hint"><kbd>A</kbd><kbd>D</kbd> or tap the yellow buttons</span></div>
+    </section>
+
+    <footer class="page-footer"><span>YCH PLAY DEPT. / EST. IN YOUR CHILDHOOD.</span><button type="button" id="how-to">How to play <span aria-hidden="true">↗</span></button></footer>
+    <span class="sr-only" id="announcement" role="status" aria-live="polite"></span>
+  </main>
+
+  <div class="rotate-screen" id="rotate-screen">
+    <span class="rotate-brand">YCH</span>
+    <div class="rotate-toy" aria-hidden="true"><i></i><span><b></b><b></b><b></b></span><i></i></div>
+    <p class="rotate-eyebrow">BETTER SIDEWAYS</p>
+    <h1>A little room<br>for both thumbs.</h1>
+    <p>Turn your iPhone sideways<br>to pick up and play.</p>
+    <span class="rotate-note">Keep Portrait Orientation Lock turned off.</span>
+  </div>
+
+  <dialog id="scene-dialog" class="scene-dialog" aria-labelledby="scene-title">
+    <div class="dialog-heading"><div><span class="eyebrow">YOUR OWN LITTLE WORLD</span><h2 id="scene-title">A change of scenery.</h2></div><button type="button" class="close-button" id="close-scenes" aria-label="Close background settings">×</button></div>
+    <div class="scene-layout">
+      <div class="preview-column"><div class="scene-preview" id="scene-preview" role="img" aria-label="Background preview. Drag to reposition your photo."><span class="preview-post"></span><span class="preview-post"></span><span class="preview-ring"></span></div><span class="preview-caption" id="preview-caption">The same little toy. A different little world.</span></div>
+      <div class="scene-settings">
+        <div class="preset-list" aria-label="Choose tank artwork"><button type="button" class="preset selected" data-scene="ocean" aria-pressed="true"><span class="swatch swatch-ocean"></span>Ocean</button><button type="button" class="preset" data-scene="sunset" aria-pressed="false"><span class="swatch swatch-sunset"></span>Sunset</button><button type="button" class="preset" data-scene="space" aria-pressed="false"><span class="swatch swatch-space"></span>Space</button></div>
+        <label class="upload-button" for="photo"><span aria-hidden="true">＋</span> Use your own photo<input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
+        <div class="photo-controls" id="photo-controls" hidden><label for="zoom">Photo zoom <output id="zoom-value">1.0×</output></label><input type="range" id="zoom" min="1" max="2.5" step="0.05" value="1"><div class="position-controls"><label for="position-x">Horizontal<input type="range" id="position-x" min="0" max="100" value="50"></label><label for="position-y">Vertical<input type="range" id="position-y" min="0" max="100" value="50"></label></div></div>
+        <p class="privacy-note">Your photo stays on this device.</p>
+        <p id="upload-error" class="upload-error" role="alert" hidden></p>
+        <button type="button" class="done-button" id="done-scenes">Back to the water →</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Press the yellow buttons to send a little jet of water through the tank. Let the rings drift down over the pink posts. Catch all twelve.</p><p>Use both thumbs on a phone, or <kbd>A</kbd> / <kbd>D</kbd> and the arrow keys on a keyboard. Each press gives one little push.</p><p>Tap <b>SCENE</b> to change the picture inside your toy. Tap <b>RESET</b> for a fresh handful of rings.</p><div class="install-tip"><b>Make it a pocket toy.</b><span>On iPhone, open in Safari, tap Share, then Add to Home Screen for a view without the browser toolbar. Play with your phone sideways.</span></div><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
+</body>
+</html>
