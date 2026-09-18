@@ -390,10 +390,13 @@
   function updateScreenMode() {
     const installed = navigator.standalone === true || standaloneMode.matches;
     const fullscreen = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    const root = document.documentElement;
+    const supported = Boolean(root.requestFullscreen || root.webkitRequestFullscreen) &&
+      (document.fullscreenEnabled ?? document.webkitFullscreenEnabled) !== false;
     $('fullscreen').hidden = installed || (fullscreenMode.matches && !fullscreen);
     $('portrait-fullscreen').hidden = installed || fullscreenMode.matches;
-    $('fullscreen-label').textContent = fullscreen ? 'EXIT SCREEN' : 'FULL SCREEN';
-    $('fullscreen').setAttribute('aria-label', fullscreen ? 'Exit full screen' : 'Full screen or iPhone installation instructions');
+    $('fullscreen-label').textContent = fullscreen ? 'EXIT SCREEN' : supported ? 'FULL SCREEN' : 'MORE SCREEN';
+    $('fullscreen').setAttribute('aria-label', fullscreen ? 'Exit full screen' : supported ? 'Full screen or browser display options' : 'More screen space without installing');
   }
   $('fullscreen').addEventListener('click', async () => {
     const root = document.documentElement;
@@ -407,7 +410,7 @@
       else if (request && enabled !== false) await request.call(root);
       else openDialog(installDialog);
     } catch {
-      // iPhone Safari does not expose general element fullscreen. Installation is its reliable path.
+      // Unsupported or denied fullscreen: offer manual Safari toolbar hiding first.
       openDialog(installDialog);
     }
     updateScreenMode();

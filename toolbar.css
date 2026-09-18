@@ -38,6 +38,9 @@
 .install-steps li::marker { color: var(--blue); font-family: var(--mono); font-weight: 700; }
 .install-explanation { color: #6e6656; }
 .install-dialog .done-button { margin-top: 4px; }
+.install-alternative { margin-top: 16px; border-top: 1px solid var(--ink); }
+.install-alternative summary { display: list-item; min-height: 44px; padding: 14px 0 10px; cursor: pointer; font: 700 11px/1.5 var(--mono); }
+.install-alternative summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 @media (max-width: 980px) { .masthead .edition { display: none; } }
 @media (max-height: 650px) and (orientation: landscape) {
   .app {

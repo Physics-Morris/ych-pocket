@@ -26,7 +26,7 @@
         <button type="button" class="toolbar-control" id="sound" aria-label="Turn sound on" aria-pressed="false"><span class="toolbar-icon" aria-hidden="true">♪</span><span id="sound-label">SOUND OFF</span></button>
         <button type="button" class="toolbar-control" id="backgrounds"><span class="toolbar-icon" aria-hidden="true">▧</span><span>SCENE</span></button>
         <button type="button" class="toolbar-control" id="restart"><span class="toolbar-icon" aria-hidden="true">↻</span><span>RESET</span></button>
-        <button type="button" class="toolbar-control" id="fullscreen" aria-label="Full screen or iPhone installation instructions"><span class="toolbar-icon" aria-hidden="true">⛶</span><span id="fullscreen-label">FULL SCREEN</span></button>
+        <button type="button" class="toolbar-control" id="fullscreen" aria-label="Full screen or browser display options"><span class="toolbar-icon" aria-hidden="true">⛶</span><span id="fullscreen-label">FULL SCREEN</span></button>
       </nav>
     </header>
 
@@ -80,7 +80,7 @@
     <p class="rotate-eyebrow">BETTER SIDEWAYS</p>
     <h1>A little room<br>for both thumbs.</h1>
     <p>Turn your iPhone sideways<br>to pick up and play.</p>
-    <button type="button" class="rotate-fullscreen" id="portrait-fullscreen">Play full screen ↗</button>
+    <button type="button" class="rotate-fullscreen" id="portrait-fullscreen">More screen space ↗</button>
     <span class="rotate-note">Keep Portrait Orientation Lock turned off.</span>
   </div>
 
@@ -102,15 +102,23 @@
   <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Press the yellow buttons to send a little jet of water through the tank. Let the rings drift down over the pink posts. Catch all twelve.</p><p>Use both thumbs on a phone, or <kbd>A</kbd> / <kbd>D</kbd> and the arrow keys on a keyboard. Each press gives one little push.</p><p>Use the toolbar above the toy to change the <b>SCENE</b>, toggle <b>SOUND</b>, or <b>RESET</b> for a fresh handful of rings.</p><div class="install-tip"><b>Make it a pocket toy.</b><span>On iPhone, open in Safari, tap Share, then Add to Home Screen. Launch YCH Pocket from its new Home Screen icon and turn your phone sideways.</span></div><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
 
   <dialog id="install-dialog" class="help-dialog install-dialog" aria-labelledby="install-title">
-    <div class="dialog-heading"><div><span class="eyebrow">MORE TOY. LESS BROWSER.</span><h2 id="install-title">Full screen on iPhone.</h2></div><button type="button" class="close-button" id="close-install" aria-label="Close full-screen instructions">×</button></div>
+    <div class="dialog-heading"><div><span class="eyebrow">MORE TOY. LESS BROWSER.</span><h2 id="install-title">More room to play.</h2></div><button type="button" class="close-button" id="close-install" aria-label="Close screen options">×</button></div>
+    <p><b>Stay in Safari. No installation needed.</b></p>
     <ol class="install-steps">
-      <li>Open this game in <b>Safari</b> and tap <b>Share</b>.</li>
-      <li>Choose <b>Add to Home Screen</b>. If shown, turn on <b>Open as Web App</b>, then tap <b>Add</b>.</li>
-      <li>Open <b>YCH Pocket</b> using its new Home Screen icon.</li>
-      <li>Turn off <b>Portrait Orientation Lock</b> in Control Center and turn your iPhone sideways.</li>
+      <li>Open this game in <b>Safari</b>. Turn off <b>Portrait Orientation Lock</b> and turn your iPhone sideways.</li>
+      <li>Tap Safari’s <b>Page Menu</b> beside the address bar (<b>aA</b> on older iOS versions).</li>
+      <li>Choose <b>Hide Toolbar</b>. If it isn’t listed, check the menu’s <b>More (…)</b> options.</li>
     </ol>
-    <p class="install-explanation">Opening from the Home Screen removes Safari’s address bar and tabs. Rotating a regular Safari tab doesn’t automatically enter full screen.</p>
-    <button type="button" class="done-button" id="got-install">Got it →</button>
+    <p class="install-explanation">This hides Safari’s controls for more playing space. Tap the address-bar area to bring them back. iPhone Safari doesn’t let this game switch a regular tab into true full screen automatically.</p>
+    <button type="button" class="done-button" id="got-install">Back to the game →</button>
+    <details class="install-alternative">
+      <summary>Optional: add a Home Screen shortcut</summary>
+      <ol class="install-steps">
+        <li>In Safari, tap <b>Share → Add to Home Screen</b>.</li>
+        <li>If shown, turn on <b>Open as Web App</b>, then tap <b>Add</b>.</li>
+        <li>Launch <b>YCH Pocket</b> from its new icon and rotate sideways to play without Safari’s toolbar.</li>
+      </ol>
+    </details>
   </dialog>
 </body>
 </html>

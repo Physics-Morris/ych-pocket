@@ -20,13 +20,13 @@ frame.onload=async()=>{try{
   check(`${w}×${h}: tank visible, no portrait overlay`,doc.querySelector('#tank').getBoundingClientRect().height>120 && win.getComputedStyle(doc.querySelector('#rotate-screen')).display==='none');
  }
  await size(390,844);check('Portrait: rotate prompt is visible',win.getComputedStyle(doc.querySelector('#rotate-screen')).display==='flex');
- doc.querySelector('#portrait-fullscreen').click();await paint();check('Portrait: full-screen installation instructions are reachable',doc.querySelector('#install-dialog').open&&doc.querySelector('#install-dialog').textContent.includes('Home Screen'));
+ doc.querySelector('#portrait-fullscreen').click();await paint();check('Portrait: no-install screen instructions are reachable',doc.querySelector('#install-dialog').open&&doc.querySelector('#install-dialog').textContent.includes('Hide Toolbar')&&!doc.querySelector('.install-alternative').open);
  doc.querySelector('#got-install').click();
  await size(844,390);
  // Simulate iPhone's missing element-fullscreen APIs without relying on desktop permissions.
  const root=doc.documentElement,fullscreenDescriptors=['requestFullscreen','webkitRequestFullscreen'].map(name=>[name,Object.getOwnPropertyDescriptor(root,name)]);
  for(const [name] of fullscreenDescriptors)Object.defineProperty(root,name,{value:undefined,configurable:true});
- doc.querySelector('#fullscreen').click();await paint();check('Unavailable fullscreen falls back to installation guidance (request: '+typeof root.requestFullscreen+', prefixed: '+typeof root.webkitRequestFullscreen+', fullscreen: '+Boolean(doc.fullscreenElement || doc.webkitFullscreenElement)+')',doc.querySelector('#install-dialog').open);doc.querySelector('#got-install').click();
+ doc.querySelector('#fullscreen').click();await paint();check('Unavailable fullscreen offers no-install guidance and an honest button label',doc.querySelector('#install-dialog').open&&doc.querySelector('#fullscreen-label').textContent==='MORE SCREEN'&&doc.querySelector('#install-dialog').textContent.includes('No installation needed'));doc.querySelector('#got-install').click();
  for(const [name,descriptor] of fullscreenDescriptors){if(descriptor)Object.defineProperty(root,name,descriptor);else delete root[name]}
  doc.querySelector('#sound').click();check('Toolbar sound control still works',doc.querySelector('#sound').getAttribute('aria-pressed')==='true');doc.querySelector('#sound').click();
  doc.querySelector('#backgrounds').click();await paint();

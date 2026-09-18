@@ -2,7 +2,7 @@
 
 A nostalgic, playable water ring-toss toy. Designed first for an iPhone held horizontally, with independent thumb pumps, 12 floating rings, two pink posts, sound, and customizable artwork inside the tank.
 
-**[Play YCH Pocket](https://physics-morris.github.io/ych-pocket/)** · Turn your iPhone sideways. In Safari, choose Share → Add to Home Screen for the full-screen toy.
+**[Play YCH Pocket](https://physics-morris.github.io/ych-pocket/)** · Turn your iPhone sideways. In Safari, choose Page Menu → Hide Toolbar for more playing space without installing. A Home Screen shortcut is optional.
 
 ## Run
 
@@ -16,7 +16,7 @@ python3 -m http.server 8000 --bind 0.0.0.0
 
 Open `http://localhost:8000` on the computer. On an iPhone connected to the same Wi-Fi network, open `http://<your-computers-local-IP>:8000` in Safari. Allow the Python server through the macOS firewall if prompted. Turn off Portrait Orientation Lock and rotate the phone sideways.
 
-The live site is served by GitHub Pages from the root of the `main` branch. Push updates to `main` to publish them. `.nojekyll` keeps the site a plain static app. On iPhone, use Safari → Share → Add to Home Screen to remove the browser toolbar. The manifest requests landscape, but iOS controls whether orientation locking is honored; the in-app portrait screen asks the player to rotate.
+The live site is served by GitHub Pages from the root of the `main` branch. Push updates to `main` to publish them. `.nojekyll` keeps the site a plain static app. On iPhone, use Safari’s Page Menu → Hide Toolbar without installing, or optionally Share → Add to Home Screen to launch without Safari’s toolbar. The game resizes to the available viewport; it cannot automatically hide Safari’s controls or enter true element fullscreen on iPhone. The manifest requests landscape, but iOS controls whether orientation locking is honored; the in-app portrait screen asks the player to rotate.
 
 ## Play
 
@@ -24,7 +24,7 @@ The live site is served by GitHub Pages from the root of the `main` branch. Push
 - Time the pulses so rings fall over the tips of the posts. Catch all 12 to win. Captured rings remain on the posts.
 - SCENE changes only the artwork behind the water. Choose Ocean, Sunset, Space, or a personal image. Uploaded photos can be zoomed and positioned by dragging or using sliders. Changes preserve game progress.
 - RESET starts a new round. SOUND toggles synthesized audio, off by default.
-- Sound, Scene, Reset, and Full Screen are in a separate toolbar above the toy, outside its curved casing. Full Screen uses the browser API where supported; on iPhone it explains how to add the game to the Home Screen and launch it without Safari’s toolbar. The same guide is available from the portrait screen.
+- Sound, Scene, Reset, and the screen control are in a separate toolbar above the toy, outside its curved casing. Full Screen uses the browser API where supported. Where it is unavailable, the button reads MORE SCREEN and explains Safari’s manual Hide Toolbar option first. Home Screen installation is an optional, collapsed alternative. The same guide is available from the portrait screen.
 - Scene, photo, and sound preferences are saved locally where browser storage is available. Gameplay starts fresh on reload. Photos are resized and stored on the device; nothing is uploaded to a server.
 
 ## Implementation
