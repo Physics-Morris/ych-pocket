@@ -1,0 +1,56 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YCH Blocks · Browser checks</title>
+<style>body{margin:24px;background:#efebe0;color:#161512;font:14px monospace}h1{font:900 25px Arial}button{padding:10px;border:2px solid #161512;background:#c4e70c;margin:0 8px 12px 0;font:inherit;cursor:pointer}#viewport{overflow:hidden;max-width:100%;border:2px solid #161512;margin:20px 0}iframe{display:block;border:0;transform-origin:top left}li{margin:7px 0}.fail{color:#a22}.pass{color:#17603d}</style>
+<h1>YCH Blocks · Browser checks</h1><p id="status">Running checks…</p><div><button data-size="844,390">844 × 390 landscape</button><button data-size="667,260">667 × 260 compact</button><button data-size="390,844">390 × 844 upright</button><button data-size="1440,900">1440 × 900 desktop</button></div><div id="viewport"><iframe id="app" src="../blocks/" title="YCH Blocks preview"></iframe></div><ol id="results"></ol>
+<script>
+const frame=document.getElementById('app'),viewport=document.getElementById('viewport');let current=[844,390],failures=0;
+const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+function fit(){const scale=Math.min(1,(document.documentElement.clientWidth-52)/current[0]);frame.style.width=current[0]+'px';frame.style.height=current[1]+'px';frame.style.transform=`scale(${scale})`;viewport.style.width=current[0]*scale+'px';viewport.style.height=current[1]*scale+'px'}
+async function size(w,h){current=[w,h];fit();await paint()}
+function check(label,condition){const el=document.createElement('li');el.className=condition?'pass':'fail';el.textContent=(condition?'PASS ':'FAIL ')+label;document.getElementById('results').append(el);if(!condition)failures++}
+document.querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>size(...b.dataset.size.split(',').map(Number)));window.addEventListener('resize',fit);fit();
+frame.onload=async()=>{try{
+ const doc=frame.contentDocument,win=frame.contentWindow,$=id=>doc.getElementById(id),button=action=>doc.querySelector(`[data-action="${action}"]`);
+ const click=async el=>{el.click();await paint()};
+ check('Ready screen, board and previews load',$('board-overlay').hidden===false&&$('game').width>0&&doc.querySelectorAll('#next-list canvas').length===5);
+ await click($('play'));
+ check('Start enters a playable round',$('board-overlay').hidden&&!button('left').disabled);
+ for(const [w,h]of [[1440,900],[844,390],[667,375],[844,290],[667,260],[390,844],[320,568]]){
+  await size(w,h);
+  const board=$('game'),controls=[...doc.querySelectorAll('.utilities button,[data-action]')].filter(e=>!e.disabled);
+  check(`${w}×${h}: no overflow`,doc.documentElement.scrollWidth<=w+1&&doc.documentElement.scrollHeight<=h+1);
+  check(`${w}×${h}: controls ≥44px and reachable`,controls.every(el=>{const r=el.getBoundingClientRect();return r.width>=43.5&&r.height>=43.5&&r.left>=0&&r.right<=w+1&&r.top>=0&&r.bottom<=h+1&&el.contains(doc.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2))}));
+  const bounds=board.getBoundingClientRect();
+  check(`${w}×${h}: square cells and whole board visible`,Math.abs(board.clientHeight/board.clientWidth-2)<.035&&bounds.left>=0&&bounds.right<=w&&bounds.top>=0&&bounds.bottom<=h);
+ }
+ await size(844,390);
+ const initialHold=$('hold-preview').toDataURL();await click($('hold'));
+ check('Hold swaps a piece and locks until the next piece',$('hold').disabled&&$('hold-preview').toDataURL()!==initialHold);
+ await click(button('drop'));
+ check('Hard drop scores and unlocks hold',Number($('score').textContent)>0&&!$('hold').disabled);
+ const scoreBefore=Number($('score').textContent);await click(button('down'));
+ check('Soft drop scores one point',Number($('score').textContent)===scoreBefore+1);
+ const beforeMove=$('game').toDataURL();await click(button('left'));
+ check('Touch movement changes the active piece',$('game').toDataURL()!==beforeMove);
+ await click($('pause'));const paused=$('game').toDataURL(),pausedScore=$('score').textContent;
+ doc.dispatchEvent(new win.KeyboardEvent('keydown',{key:' ',bubbles:true}));doc.dispatchEvent(new win.KeyboardEvent('keyup',{key:' ',bubbles:true}));await paint();
+ check('Pause blocks keyboard drops and shows resume',!$('board-overlay').hidden&&$('play').textContent.includes('KEEP GOING')&&$('score').textContent===pausedScore&&$('game').toDataURL()===paused);
+ await click($('play'));check('Resume returns to gameplay',$('board-overlay').hidden);
+ await click($('help'));check('Help pauses the game',$('help-dialog').open&&button('drop').disabled);
+ await click(doc.querySelector('[data-close="help-dialog"]'));check('Closing help resumes the round',!$('help-dialog').open&&!button('drop').disabled);
+ await click($('restart'));await click(doc.querySelector('[data-mode="sprint"]'));await click($('start-new'));
+ check('Sprint starts clean with a forty-line target',$('mode-label').textContent==='40-LINE SPRINT'&&$('lines').textContent==='0 / 40 LINES'&&Number($('score').textContent)===0);
+ await click($('restart'));await click(doc.querySelector('[data-mode="ultra"]'));await click($('start-new'));
+ check('Two-minute mode starts with its countdown',$('mode-label').textContent==='2-MINUTE RUSH'&&['02:00','01:59'].includes($('clock').textContent));
+ await click($('restart'));await click(doc.querySelector('[data-mode="marathon"]'));await click($('start-new'));
+ const nextBefore=doc.querySelector('#next-list canvas').toDataURL();doc.dispatchEvent(new win.KeyboardEvent('keydown',{key:' ',bubbles:true}));doc.dispatchEvent(new win.KeyboardEvent('keyup',{key:' ',bubbles:true}));await paint();
+ check('Space hard-drops through keyboard input',Number($('score').textContent)>0);
+ const priorSound=$('sound').getAttribute('aria-pressed');await click($('sound'));check('Sound toggles',$('sound').getAttribute('aria-pressed')!==priorSound);await click($('sound'));
+ await size(390,844);await click($('help'));const r=$('help-dialog').getBoundingClientRect();
+ check('Upright browser keeps menus horizontal and onscreen',r.left>=0&&r.right<=390&&r.top>=0&&r.bottom<=844&&win.getComputedStyle($('help-dialog')).overflowY==='auto');
+ await click(doc.querySelector('[data-close="help-dialog"]'));
+ win.dispatchEvent(new win.Event('blur'));await paint();check('Leaving the game pauses safely',!$('board-overlay').hidden&&$('overlay-title').textContent==='ON PAUSE.');
+ check('Water game is linked from the header',doc.querySelector('.game-switch').getAttribute('href')==='../');
+ await size(844,390);
+ document.getElementById('status').textContent=failures?`${failures} checks failed.`:'All browser checks passed. Select a size to inspect.';
+}catch(error){check('Execution: '+error.message,false);document.getElementById('status').textContent='Stopped: '+error.message}finally{if(location.port==='8001')fetch('/__checks/blocks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({suite:'blocks',status:document.getElementById('status').textContent,checks:[...document.querySelectorAll('#results li')].map(el=>el.textContent)})}).catch(()=>{})}};
+</script></html>

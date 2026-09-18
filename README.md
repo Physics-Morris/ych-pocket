@@ -1,8 +1,21 @@
-# YCH Pocket — Nostalgia Game 1
+# YCH Pocket — Nostalgia Games
 
 A nostalgic, playable water ring-toss toy. Designed first for an iPhone held horizontally, with independent thumb pumps, 12 floating rings, three pink posts, sound, and customizable artwork inside the tank.
 
 **[Play YCH Pocket](https://physics-morris.github.io/ych-pocket/)** · Opens directly in landscape, including in an upright browser. In Safari, choose Page Menu → Hide Toolbar for more playing space without installing. A Home Screen shortcut is optional.
+
+## Game 2: YCH Blocks
+
+**[Play YCH Blocks](https://physics-morris.github.io/ych-pocket/blocks/)** — classic falling-block gameplay with original YCH styling. Switch between Blocks and the water toy using the header links.
+
+- 10×20 visible board, seven tetromino shapes, seven-piece bags, SRS rotations and wall kicks, ghost landing preview, hold, and a next queue (five previews on desktop, three on phones, two on very short screens).
+- Marathon speeds up every ten lines. Sprint times a forty-line finish. Two-minute Rush scores a 120-second round. Best scores and Sprint times are stored on the current device.
+- Soft/hard drops, 800ms lock delay with a fifteen-move reset limit, combos, back-to-back difficult clears, T-spins, and perfect-clear bonuses.
+- Keyboard: arrows to move/drop, Up/X and Z to rotate, Space to hard-drop, C/Shift to hold, P/Esc to pause. Touch buttons support independent simultaneous presses and held movement. Audio is synthesized and off by default.
+- Opens in landscape, including a rotated upright browser. Menus pause play, switching away pauses safely, and changing mode requires starting a new round. No tilt control is needed for Blocks.
+- This is a standalone single-player game. It has no Facebook login, opponents, matchmaking, or online leaderboard.
+
+The block engine is in `blocks/engine.js`; the rendering, input, sound, and local records are in `blocks/app.js`. Both games are cached by the existing service worker.
 
 ## Run
 
@@ -47,3 +60,7 @@ YCH branding with warm paper, ink outlines, hard offset shadows, bold type, and 
 - `node tests/tilt.test.cjs`: nine checks covering permission lifecycle, both landscape directions and the rotated portrait browser, lift/settle, smoothing, rotation, missing/stale data, and cancellation.
 - Open `/tests/browser.html` on the local server for real-browser checks of landscape layouts at 844×390, 852×393, 667×375, 844×290, 667×260, and upright browsers at 390×844, 375×667, 320×568, and 430×932; immediate landscape play and full-screen guidance; unclipped 44px toolbar controls; photo decoding and zoom; three-post preview, and scene/sound/reset/tilt interactions including simulated permission grant and denial. The page creates a synthetic test image locally and finishes on the Ocean preset.
 - Desktop Chrome was visually checked for the YCH styling and live pump/ring motion. Actual iPhone hardware, iOS safe-area behavior, Home Screen installation, and real sensor sensitivity still need device testing. Phone motion was verified with deterministic sensor simulations, not physical iPhone hardware.
+
+- `node tests/blocks.test.cjs`: nineteen engine checks covering bags, collisions, kicks, hold, scoring, spins, lock timing, all modes, and 20,000 randomized steps.
+- Open `/tests/blocks-browser.html`: 38 checks for phone/desktop layouts plus start, hold, drops, pause/resume, dialogs, mode switching, sound, and keyboard controls. All 38 Blocks checks and all 55 water-game browser checks passed in Chrome. Actual iPhone hardware still needs hands-on testing.
+- For machine-readable browser results, run `python3 tests/serve.py`, then open both test pages at `http://127.0.0.1:8001`. Read `/__checks` on that local server for the results. Reports stay in memory and are never uploaded.

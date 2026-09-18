@@ -1,5 +1,5 @@
-const CACHE = 'ych-pocket-v6';
-const FILES = ['./', 'index.html', 'styles.css', 'ych-theme.css', 'toolbar.css', 'app.js', 'tilt.js', 'manifest.webmanifest', 'assets/ocean.svg', 'assets/sunset.svg', 'assets/space.svg', 'assets/icon.svg', 'assets/apple-touch-icon.png'];
+const CACHE = 'ych-pocket-v7';
+const FILES = ['./', 'index.html', 'styles.css', 'ych-theme.css', 'toolbar.css', 'app.js', 'tilt.js', 'manifest.webmanifest', 'blocks/', 'blocks/index.html', 'blocks/engine.js', 'blocks/app.js', 'blocks/blocks.css', 'blocks/manifest.webmanifest', 'assets/ocean.svg', 'assets/sunset.svg', 'assets/space.svg', 'assets/icon.svg', 'assets/apple-touch-icon.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });

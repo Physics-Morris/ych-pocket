@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#EFEBE0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="YCH Blocks">
+  <meta name="description" content="YCH Nostalgia Game 2. Classic falling blocks, two thumbs, and one more round. Play Marathon, 40-line Sprint, or a two-minute score attack.">
+  <title>YCH Blocks — Nostalgia Game 2</title>
+  <link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="blocks.css">
+  <script src="engine.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="arcade">
+    <header class="topbar">
+      <a class="game-switch" href="../" aria-label="Play the water ring-toss game"><span class="logo">YCH</span><span>← 01 WATER</span></a>
+      <span class="edition">02 ↳ BLOCKS</span>
+      <nav class="utilities" aria-label="Game settings">
+        <button id="sound" aria-pressed="false" aria-label="Turn sound on">♪ <span id="sound-label">OFF</span></button>
+        <button id="pause" aria-label="Pause game">Ⅱ <span id="pause-label">PAUSE</span></button>
+        <button id="restart" aria-label="Restart or change game mode">↻ <span>NEW</span></button>
+        <button id="help" aria-label="How to play">?</button>
+        <button id="fullscreen" aria-label="Full screen or browser display options">⛶</button>
+      </nav>
+    </header>
+
+    <section class="console" aria-label="Falling blocks game">
+      <aside class="left-panel">
+        <div class="game-title"><span class="eyebrow">NOSTALGIA GAME 02</span><h1>BLOCK<br>PARTY<span>✳</span></h1><span class="tag">KEYBOARD READY.</span></div>
+        <div class="stats">
+          <div class="score-card"><span>SCORE</span><strong id="score">000000</strong></div>
+          <div class="small-stats"><div><span>BEST</span><b id="best">0</b></div><div><span>LEVEL</span><b id="level">01</b></div></div>
+        </div>
+        <button class="hold-button" id="hold" data-action="hold" aria-label="Hold piece. C or Shift."><span>HOLD <small>C / SHIFT</small></span><canvas id="hold-preview" width="160" height="64" aria-hidden="true"></canvas><span id="hold-note">SAVE FOR LATER</span></button>
+        <div class="movement" aria-label="Move piece">
+          <button class="pad" data-action="left" aria-label="Move left. Left arrow.">←</button>
+          <button class="pad soft" data-action="down" aria-label="Soft drop. Down arrow.">↓</button>
+          <button class="pad" data-action="right" aria-label="Move right. Right arrow.">→</button>
+        </div>
+      </aside>
+
+      <div class="board-frame">
+        <div class="board-top"><span id="mode-label">MARATHON</span><span id="clock">00:00</span></div>
+        <div class="board" id="board">
+          <canvas id="game" role="img" aria-label="Ten-column, twenty-row falling-block board."></canvas>
+          <div class="board-overlay" id="board-overlay"><span class="eyebrow" id="overlay-eyebrow">READY WHEN YOU ARE</span><strong id="overlay-title">MAKE<br>ROOM.</strong><p id="overlay-copy">Fill a row.<br>Clear your head.</p><button id="play">LET’S PLAY →</button></div>
+          <div class="clear-message" id="clear-message" hidden></div>
+        </div>
+        <div class="board-bottom"><span id="lines">00 LINES</span><span id="landing-label">10 × 20</span></div>
+        <div class="lock-meter" id="lock-meter" aria-hidden="true"><span id="lock-fill"></span></div>
+      </div>
+
+      <aside class="right-panel">
+        <div class="next-card"><span class="eyebrow">COMING UP NEXT</span><div class="next-list" id="next-list"><canvas width="128" height="58" aria-hidden="true"></canvas><canvas width="128" height="58" aria-hidden="true"></canvas><canvas width="128" height="58" aria-hidden="true"></canvas><canvas width="128" height="58" aria-hidden="true"></canvas><canvas width="128" height="58" aria-hidden="true"></canvas></div></div>
+        <div class="tip"><b id="goal">KEEP IT GOING.</b><span id="goal-copy">Every 10 lines, a little faster.</span></div>
+        <div class="rotation"><button class="pad rotate-back" data-action="ccw" aria-label="Rotate counterclockwise. Z.">↶ <small>Z</small></button><button class="pad rotate-forward" data-action="cw" aria-label="Rotate clockwise. Up arrow or X.">↷ <small>X</small></button></div>
+        <button class="drop-button" data-action="drop" aria-label="Hard drop. Space."><span>⇓</span><b>DROP</b><small>SPACE</small></button>
+      </aside>
+    </section>
+    <div class="sr-only" role="status" aria-live="polite" id="announcement"></div>
+  </main>
+
+  <dialog id="new-dialog" aria-labelledby="new-title">
+    <div class="dialog-head"><div><span class="eyebrow">PICK YOUR PACE</span><h2 id="new-title">One more round.</h2></div><button class="close" data-close="new-dialog" aria-label="Close new game options">×</button></div>
+    <div class="modes" role="group" aria-label="Game mode"><button data-mode="marathon" aria-pressed="true"><b>MARATHON</b><span>Clear lines. Chase your best.<br>Faster every 10 lines.</span></button><button data-mode="sprint" aria-pressed="false"><b>40-LINE SPRINT</b><span>Clear 40 lines.<br>Beat your fastest time.</span></button><button data-mode="ultra" aria-pressed="false"><b>2-MINUTE RUSH</b><span>120 seconds.<br>How high can you score?</span></button></div>
+    <p class="dialog-note" id="restart-note">Your current round will be replaced when you start.</p>
+    <button class="primary" id="start-new">START MARATHON →</button>
+  </dialog>
+
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-head"><div><span class="eyebrow">SAME OLD MAGIC</span><h2 id="help-title">A place for every piece.</h2></div><button class="close" data-close="help-dialog" aria-label="Close instructions">×</button></div>
+    <p>Fit the falling pieces together. A full horizontal row disappears. Clear four rows at once for a big bonus. The outlined <b>ghost</b> shows exactly where your piece will land.</p>
+    <div class="key-guide"><span><kbd>←</kbd><kbd>→</kbd> Move</span><span><kbd>↓</kbd> Soft drop</span><span><kbd>↑</kbd><kbd>X</kbd> Rotate right</span><span><kbd>Z</kbd> Rotate left</span><span><kbd>Space</kbd> Drop instantly</span><span><kbd>C</kbd><kbd>Shift</kbd> Hold</span><span><kbd>P</kbd><kbd>Esc</kbd> Pause</span></div>
+    <p>On your phone, use the big buttons beside the board. Hold an arrow to move repeatedly. You can hold a piece once before locking the next one.</p>
+    <p><b>Touch down. Then turn.</b> A piece stays movable for 0.8 seconds after landing. Rotate or slide to restart that time, up to 15 adjustments. The green landing bar shows the time left. Wall and floor kicks help pieces turn in tight spaces. <b>Hard drop locks immediately.</b></p>
+    <p>Consecutive clears, four-line clears, T-spins, and all-clear boards earn bonuses.</p>
+    <p class="dialog-note">The game pauses when you switch tabs. Tilt is used by the water game; blocks use the buttons.</p>
+    <button class="primary" data-close="help-dialog">GOT IT →</button>
+  </dialog>
+
+  <dialog id="screen-dialog" aria-labelledby="screen-title">
+    <div class="dialog-head"><div><span class="eyebrow">MORE GAME. LESS BROWSER.</span><h2 id="screen-title">More room to play.</h2></div><button class="close" data-close="screen-dialog" aria-label="Close screen options">×</button></div>
+    <p>No installation needed. In iPhone Safari, tap <b>Page Menu → Hide Toolbar</b> (check <b>…</b> if needed). The game stays in a horizontal layout even if Safari opens upright.</p><p>For a view without Safari’s toolbar, you can also choose <b>Share → Add to Home Screen</b> and launch the new icon. Safari controls full-screen access on iPhone.</p>
+    <button class="primary" data-close="screen-dialog">BACK TO THE BLOCKS →</button>
+  </dialog>
+</body>
+</html>
