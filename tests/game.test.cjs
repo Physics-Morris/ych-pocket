@@ -8,7 +8,7 @@ function runTests() {
   const elements = new Map();
   const context2d = new Proxy({}, { get: (_, key) => key === 'createLinearGradient' ? () => ({ addColorStop() {} }) : () => {}, set: () => true });
   class Element {
-    constructor(id) { this.id = id; this.listeners = {}; this.open = false; this.hidden = false; this.dataset = {}; this.style = {}; this.tagName = 'BUTTON'; this.classes = new Set(); this.classList = { add: n => this.classes.add(n), remove: n => this.classes.delete(n), toggle: (n, value) => value ? this.classes.add(n) : this.classes.delete(n) }; }
+    constructor(id) { this.id = id; this.listeners = {}; this.open = false; this.hidden = false; this.dataset = {}; this.style = {}; this.tagName = 'BUTTON'; this.clientWidth = 560; this.clientHeight = 350; this.classes = new Set(); this.classList = { add: n => this.classes.add(n), remove: n => this.classes.delete(n), toggle: (n, value) => value ? this.classes.add(n) : this.classes.delete(n) }; }
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
     emit(name, values = {}) { for (const listener of this.listeners[name] || []) listener({ target: this, preventDefault() {}, pointerId: 1, pointerType: 'touch', button: 0, ...values }); }
     removeEventListener(name, fn) { this.listeners[name] = (this.listeners[name] || []).filter(listener => listener !== fn); }
@@ -26,7 +26,8 @@ function runTests() {
   const storage = new Map();
   let seed = 71821;
   const math = Object.create(Math); math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-  const sandbox = { document: doc, window: win, navigator: {}, localStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v) }, matchMedia: () => ({ matches: false, addEventListener() {} }), ResizeObserver: class { observe() {} }, requestAnimationFrame() { return 1; }, cancelAnimationFrame() {}, setTimeout, clearTimeout, performance: { now: () => 0 }, Math: math, console };
+  const sidewaysQuery = { matches: false, listeners: [], addEventListener(name, fn) { this.listeners.push(fn); } };
+  const sandbox = { document: doc, window: win, navigator: {}, localStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v) }, matchMedia: query => query === '(orientation: portrait)' ? sidewaysQuery : ({ matches: false, addEventListener() {} }), ResizeObserver: class { observe() {} }, requestAnimationFrame() { return 1; }, cancelAnimationFrame() {}, setTimeout, clearTimeout, performance: { now: () => 0 }, Math: math, console };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'tilt.js'), 'utf8'), sandbox);
   const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
   const instrumented = source.replace(/\}\)\(\);\s*$/, 'globalThis.testGame = { reset, pump, step, tilt, get bubbles() { return bubbles; }, get rings() { return rings; }, get caught() { return caught; }, posts, get scene() { return scene; } }; })();');
@@ -133,6 +134,15 @@ function runTests() {
     }
     assert(game.caught > 0, 'ordinary alternating pumps should naturally produce catches');
     results.push(`Simulation: ${game.caught}/12 rings caught with simple alternating pulses.`);
+  });
+  test('opening upright keeps pumps active and rotating preserves catches', () => {
+    sidewaysQuery.matches = true; sidewaysQuery.listeners.forEach(fn => fn());
+    game.rings.forEach((r, i) => place(r, i === 0 ? 130 : 600, 360, 0));
+    game.pump(0); assert(game.rings[0].vy < -400, 'upright browser must not pause gameplay');
+    place(game.rings[0], game.posts[0].x, game.posts[0].tip - .3, 80); game.step(1 / 120);
+    assert.equal(game.caught, 1);
+    sidewaysQuery.matches = false; sidewaysQuery.listeners.forEach(fn => fn());
+    assert.equal(game.caught, 1); assert(game.rings[0].caught);
   });
   test('gravity starts by default when the browser does not require a gesture', () => {
     delete win.DeviceOrientationEvent.requestPermission;

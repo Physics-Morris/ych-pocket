@@ -5,7 +5,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(path.join(__dirname, '..', 'tilt.js'), 'utf8');
 
-function fixture({ permission = 'granted', secure = true, sensor = true, angle = 90 } = {}) {
+function fixture({ permission = 'granted', secure = true, sensor = true, angle = 90, layoutRotation = () => 0 } = {}) {
   const listeners = new Map(), timers = new Map();
   let clock = 0, requests = 0, changes = 0;
   const win = {
@@ -20,7 +20,7 @@ function fixture({ permission = 'granted', secure = true, sensor = true, angle =
     window: win, document: doc, performance: { now: () => clock },
     setTimeout(fn) { const id = Symbol(); timers.set(id, fn); return id; }, clearTimeout(id) { timers.delete(id); }
   });
-  const tilt = new win.YCHTilt(() => changes++);
+  const tilt = new win.YCHTilt(() => changes++, layoutRotation);
   return {
     tilt, win, doc, timers,
     get requests() { return requests; }, get changes() { return changes; },
@@ -79,6 +79,17 @@ async function runTests() {
     f.win.orientation = 270; f.emit('orientationchange'); assert(!f.tilt.ready);
     f.emit('deviceorientation', { beta: -25, gamma: 20 });
     assert(f.settle().x > 130 && f.settle().y > 90, 'flipped landscape must follow the same physical edge');
+  });
+  await test('CSS landscape rotation maps gravity to the same game edges', async () => {
+    let layout = 90;
+    const f = fixture({ angle: 0, layoutRotation: () => layout }); await f.tilt.start();
+    f.emit('deviceorientation', { beta: 25, gamma: -20 });
+    const rotated = { ...f.settle() };
+    assert(rotated.x > 130 && rotated.y > 90);
+    layout = 0; f.win.orientation = 90; f.tilt.refresh();
+    f.emit('deviceorientation', { beta: 25, gamma: -20 });
+    assert(Math.abs(f.settle().x - rotated.x) < .001);
+    assert(Math.abs(f.settle().y - rotated.y) < .001);
   });
   await test('permission denial and errors leave pumps usable with no active sensor', async () => {
     for (const permission of ['denied', () => Promise.reject(new Error('blocked'))]) {

@@ -11,19 +11,22 @@ frame.onload=async()=>{try{
  const doc=frame.contentDocument,win=frame.contentWindow;
  // The default iPhone-style permission guide is intentionally modal before play.
  if(doc.querySelector('#tilt-dialog').open){check('Default gravity setup is shown before play',doc.querySelector('#tilt-dialog').textContent.includes('On by default'));doc.querySelector('#done-tilt').click();await paint()}
- for(const [w,h] of [[844,390],[852,393],[667,375],[844,290],[667,260]]){
+ for(const [w,h] of [[844,390],[852,393],[667,375],[844,290],[667,260],[390,844],[375,667],[320,568],[430,932]]){
   await size(w,h);
   const shell=doc.querySelector('.shell').getBoundingClientRect();
   const buttons=[...doc.querySelectorAll('.pump,.toolbar-control')].filter(b=>!b.hidden);
   const controls=buttons.map(e=>e.getBoundingClientRect());
   check(`${w}×${h}: no page overflow`,doc.documentElement.scrollWidth<=w+1 && doc.documentElement.scrollHeight<=h+1);
   check(`${w}×${h}: every control ≥44px and inside the viewport`,controls.every(r=>r.width>=43.5&&r.height>=43.5&&r.left>=0&&r.right<=w&&r.top>=0&&r.bottom<=h));
-  check(`${w}×${h}: utility controls sit outside the toy and remain tappable`,buttons.filter(b=>b.classList.contains('toolbar-control')).every(b=>{const r=b.getBoundingClientRect();return r.bottom<shell.top&&[[r.left+7,r.top+7],[r.right-7,r.top+7],[r.left+7,r.bottom-7],[r.right-7,r.bottom-7]].every(([x,y])=>b.contains(doc.elementFromPoint(x,y)))}));
-  check(`${w}×${h}: tank visible, no portrait overlay`,doc.querySelector('#tank').getBoundingClientRect().height>120 && win.getComputedStyle(doc.querySelector('#rotate-screen')).display==='none');
+  check(`${w}×${h}: utility controls sit outside the toy and remain tappable`,buttons.filter(b=>b.classList.contains('toolbar-control')).every(b=>{const r=b.getBoundingClientRect();return (w>=h?r.bottom<shell.top:r.left>shell.right)&&[[r.left+7,r.top+7],[r.right-7,r.top+7],[r.left+7,r.bottom-7],[r.right-7,r.bottom-7]].every(([x,y])=>b.contains(doc.elementFromPoint(x,y)))}));
+  check(`${w}×${h}: tank visible, no portrait overlay`,doc.querySelector('#tank').clientHeight>120 && !doc.querySelector('#rotate-screen'));
  }
- await size(390,844);check('Portrait: rotate prompt is visible',win.getComputedStyle(doc.querySelector('#rotate-screen')).display==='flex');
- doc.querySelector('#portrait-fullscreen').click();await paint();check('Portrait: no-install screen instructions are reachable',doc.querySelector('#install-dialog').open&&doc.querySelector('#install-dialog').textContent.includes('Hide Toolbar')&&!doc.querySelector('.install-alternative').open);
- doc.querySelector('#got-install').click();
+ await size(390,844);
+ check('Upright browser shows the landscape game immediately',win.getComputedStyle(doc.querySelector('.app')).visibility==='visible'&&doc.querySelector('.app').clientWidth>doc.querySelector('.app').clientHeight&&!doc.querySelector('#rotate-screen'));
+ doc.querySelector('#backgrounds').click();await paint();
+ let sidewaysDialog=doc.querySelector('#scene-dialog'),sidewaysBox=sidewaysDialog.getBoundingClientRect();
+ check('Settings rotate with the game and stay inside the screen',sidewaysDialog.open&&sidewaysBox.left>=0&&sidewaysBox.top>=0&&sidewaysBox.right<=390&&sidewaysBox.bottom<=844);
+ doc.querySelector('#done-scenes').click();
  await size(844,390);
  // Simulate iPhone's missing element-fullscreen APIs without relying on desktop permissions.
  const root=doc.documentElement,fullscreenDescriptors=['requestFullscreen','webkitRequestFullscreen'].map(name=>[name,Object.getOwnPropertyDescriptor(root,name)]);
@@ -67,6 +70,15 @@ frame.onload=async()=>{try{
  check('Local photo decodes and becomes the background',!doc.querySelector('#photo-controls').hidden&&doc.querySelector('#tank-art').style.backgroundImage.includes('data:image/jpeg'));
  doc.querySelector('#zoom').value='1.5';doc.querySelector('#zoom').dispatchEvent(new win.Event('input',{bubbles:true}));
  check('Photo zoom is live',doc.querySelector('#zoom-value').textContent==='1.5×');
+ await size(390,844);
+ const preview=doc.querySelector('#scene-preview'),capture=preview.setPointerCapture;
+ const startX=Number(doc.querySelector('#position-x').value),startY=Number(doc.querySelector('#position-y').value);
+ const previewBox=preview.getBoundingClientRect(),dragX=previewBox.left+previewBox.width/2,dragY=previewBox.top+previewBox.height/2;
+ // Synthetic pointer events have no native capture; isolate only that browser primitive.
+ preview.setPointerCapture=()=>{};
+ for(const [type,y] of [['pointerdown',dragY],['pointermove',dragY+20],['pointerup',dragY+20]])preview.dispatchEvent(new win.PointerEvent(type,{pointerId:42,clientX:dragX,clientY:y,bubbles:true}));
+ preview.setPointerCapture=capture;
+ check('Photo dragging follows the rotated game axes',Number(doc.querySelector('#position-x').value)<startX&&Number(doc.querySelector('#position-y').value)===startY);
  await size(844,290);const dialog=doc.querySelector('#scene-dialog');check('Photo settings remain scrollable inside short landscape viewport ('+Math.round(dialog.getBoundingClientRect().height)+'px, '+win.getComputedStyle(dialog).overflowY+')',dialog.getBoundingClientRect().height<=290&&win.getComputedStyle(dialog).overflowY==='auto');
  doc.querySelector('[data-scene="ocean"]').click();doc.querySelector('#done-scenes').click();
  check('Closing settings resumes game',!dialog.open);

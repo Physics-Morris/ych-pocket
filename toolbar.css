@@ -23,16 +23,7 @@
 .toolbar-icon { font: 20px/1 Arial, sans-serif; }
 #sound[aria-pressed="true"] { background: var(--lime); }
 #fullscreen { background: var(--lime); }
-.rotate-fullscreen {
-  min-height: 44px;
-  margin-top: 22px;
-  padding: 9px 16px;
-  background: var(--blue);
-  color: white;
-  border: 2px solid var(--ink);
-  box-shadow: 3px 3px var(--ink);
-  font: 700 12px var(--mono);
-}
+
 .install-steps { margin: 0; padding-left: 24px; font-size: 14px; line-height: 1.55; }
 .install-steps li { padding-left: 5px; margin: 12px 0; }
 .install-steps li::marker { color: var(--blue); font-family: var(--mono); font-weight: 700; }
@@ -42,9 +33,9 @@
 .install-alternative summary { display: list-item; min-height: 44px; padding: 14px 0 10px; cursor: pointer; font: 700 11px/1.5 var(--mono); }
 .install-alternative summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 @media (max-width: 980px) { .masthead .edition { display: none; } }
-@media (max-height: 650px) and (orientation: landscape) {
+@media (max-height: 650px) and (orientation: landscape), (orientation: portrait) {
   .app {
-    padding: max(5px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    padding: max(5px, var(--game-safe-top)) max(18px, var(--game-safe-right)) max(7px, var(--game-safe-bottom)) max(18px, var(--game-safe-left));
   }
   .masthead {
     position: relative;
@@ -62,16 +53,13 @@
   .toolbar-icon { font-size: 18px; }
   .play-area { padding: 8px 5px 4px; }
   .machine {
-    width: min(100%, 1000px, calc((100dvh - 82px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 2.27));
+    width: min(100%, 1000px, calc((var(--game-height) - 82px - var(--game-safe-top) - var(--game-safe-bottom)) * 2.27));
   }
   .install-steps { font-size: 12px; line-height: 1.45; }
   .install-steps li { margin: 8px 0; }
 }
-@media (max-width: 700px) and (orientation: portrait) {
-  .rotate-screen { padding-top: max(90px, env(safe-area-inset-top)); padding-bottom: max(65px, env(safe-area-inset-bottom)); }
-  .rotate-toy { margin-bottom: 30px; }
-}
-@media (max-height: 300px) and (orientation: landscape) {
+
+@media (max-height: 300px) and (orientation: landscape), (max-width: 300px) and (orientation: portrait) {
   .shell { padding-top: 2%; padding-bottom: 1.8%; }
   .top-print { display: none; }
   .machine-brand { height: 14%; }
@@ -79,12 +67,7 @@
   .grip { padding-top: 9%; }
   .grip-top { margin-bottom: 6%; }
 }
-@media (max-width: 700px) and (max-height: 680px) and (orientation: portrait) {
-  .rotate-toy { width: 210px; height: 94px; margin-bottom: 22px; flex-shrink: 0; }
-  .rotate-screen h1 { font-size: 30px; }
-  .rotate-screen p { font-size: 14px; }
-  .rotate-fullscreen { margin-top: 16px; }
-}
+
 
 /* Motion controls keep all utilities above the casing. */
 #tilt-control[aria-pressed="true"] { background: var(--lime); }
@@ -99,7 +82,39 @@
 .scene-preview .preview-post:nth-child(3) { left: 70.3125%; }
 .scene-preview .preview-ring { left: calc(29.6875% - 10px); }
 @media (min-width: 981px) and (max-width: 1150px) { .masthead .edition { display: none; } }
-@media (max-width: 740px) and (orientation: landscape) {
+@media (max-width: 740px) and (orientation: landscape), (max-height: 740px) and (orientation: portrait) {
   .game-toolbar { gap: 5px; }
   .toolbar-control { min-width: 60px; padding: 6px; gap: 3px; }
+}
+
+/* Rotate the entire landscape layout instead of showing a portrait screen. */
+@media (orientation: portrait) {
+  :root {
+    --game-width: 100dvh;
+    --game-height: 100dvw;
+    --game-safe-top: env(safe-area-inset-right, 0px);
+    --game-safe-right: env(safe-area-inset-bottom, 0px);
+    --game-safe-bottom: env(safe-area-inset-left, 0px);
+    --game-safe-left: env(safe-area-inset-top, 0px);
+  }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  .app {
+    position: fixed;
+    top: 50%; left: 50%;
+    width: var(--game-width);
+    height: var(--game-height);
+    min-height: 0;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center;
+  }
+  dialog {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    margin: 0;
+    width: min(660px, calc(var(--game-width) - 80px));
+    max-width: none;
+    max-height: calc(var(--game-height) - 24px);
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center;
+  }
 }

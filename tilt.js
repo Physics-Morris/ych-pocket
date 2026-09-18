@@ -7,8 +7,9 @@
   const deadzone = value => Math.sign(value) * Math.max(0, Math.abs(value) - .025);
 
   class YCHTilt {
-    constructor(onChange = () => {}) {
+    constructor(onChange = () => {}, layoutRotation = () => 0) {
       this.onChange = onChange;
+      this.layoutRotation = layoutRotation;
       this.enabled = false;
       this.ready = false;
       this.requesting = false;
@@ -78,7 +79,7 @@
     read(event) {
       if (!this.enabled || document.hidden || !Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
       const angle = window.screen?.orientation?.angle ?? window.orientation ?? 0;
-      const projected = YCHTilt.project(event.beta, event.gamma, angle);
+      const projected = YCHTilt.project(event.beta, event.gamma, angle + this.layoutRotation());
       const now = performance.now();
       const first = !this.ready || now - this.lastSample > 1000;
       this.lastSample = now;

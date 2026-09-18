@@ -10,11 +10,11 @@
   const helpDialog = $('help-dialog');
   const installDialog = $('install-dialog');
   const tiltDialog = $('tilt-dialog');
-  const portrait = matchMedia('(max-width: 700px) and (orientation: portrait)');
+  const sidewaysLayout = matchMedia('(orientation: portrait)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const colors = ['#f26974', '#ffdf3f', '#60c379', '#597bd4'];
   const posts = [190, 320, 450].map(x => ({ x, tip: 195, rings: [] }));
-  const tilt = new window.YCHTilt(updateTiltUI);
+  const tilt = new window.YCHTilt(updateTiltUI, () => sidewaysLayout.matches ? 90 : 0);
   const pumpButtons = [$('pump-left'), $('pump-right')];
   const pointers = [new Set(), new Set()];
   const keySides = new Map();
@@ -28,7 +28,7 @@
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const random = (lo, hi) => lo + Math.random() * (hi - lo);
   const announce = message => { $('announcement').textContent = message; };
-  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || tiltDialog.open || portrait.matches;
+  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || tiltDialog.open;
 
   function updateScore() {
     $('score').innerHTML = `${String(caught).padStart(2, '0')}<span> / ${TOTAL}</span>`;
@@ -305,11 +305,12 @@
   }
 
   function resize() {
-    const rect = tank.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    // client dimensions are local to the toy, before its portrait rotation.
+    const width = tank.clientWidth, height = tank.clientHeight;
+    if (!width || !height) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
     ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
     renderScene();
     draw();
@@ -366,7 +367,7 @@
   });
   window.addEventListener('blur', releaseInputs);
   document.addEventListener('visibilitychange', () => { releaseInputs(); lastTime = 0; if (!document.hidden) tilt.refresh(); });
-  portrait.addEventListener('change', () => { releaseInputs(); lastTime = 0; resize(); showDefaultTiltPrompt(); });
+  sidewaysLayout.addEventListener('change', () => { releaseInputs(); lastTime = 0; tilt.refresh(); resize(); });
 
   $('restart').addEventListener('click', reset);
   $('play-again').addEventListener('click', reset);
@@ -388,7 +389,6 @@
   $('got-it').addEventListener('click', () => helpDialog.close());
   $('close-install').addEventListener('click', () => installDialog.close());
   $('got-install').addEventListener('click', () => installDialog.close());
-  $('portrait-fullscreen').addEventListener('click', () => openDialog(installDialog));
 
   function updateTiltUI() {
     $('tilt-control').setAttribute('aria-pressed', String(tilt.ready));
@@ -434,7 +434,6 @@
     const supported = Boolean(root.requestFullscreen || root.webkitRequestFullscreen) &&
       (document.fullscreenEnabled ?? document.webkitFullscreenEnabled) !== false;
     $('fullscreen').hidden = installed || (fullscreenMode.matches && !fullscreen);
-    $('portrait-fullscreen').hidden = installed || fullscreenMode.matches;
     $('fullscreen-label').textContent = fullscreen ? 'EXIT SCREEN' : supported ? 'FULL SCREEN' : 'MORE SCREEN';
     $('fullscreen').setAttribute('aria-label', fullscreen ? 'Exit full screen' : supported ? 'Full screen or browser display options' : 'More screen space without installing');
   }
@@ -473,9 +472,9 @@
   });
 
   function sceneDimensions(element) {
-    const rect = element.getBoundingClientRect();
-    const ratio = Math.max(rect.width / photoSize.width, rect.height / photoSize.height) * scene.zoom;
-    return { width: photoSize.width * ratio, height: photoSize.height * ratio, viewportW: rect.width, viewportH: rect.height };
+    const width = element.clientWidth, height = element.clientHeight;
+    const ratio = Math.max(width / photoSize.width, height / photoSize.height) * scene.zoom;
+    return { width: photoSize.width * ratio, height: photoSize.height * ratio, viewportW: width, viewportH: height };
   }
 
   function renderScene() {
@@ -536,8 +535,11 @@
     if (!dragging || dragging.id !== event.pointerId) return;
     const size = sceneDimensions(preview);
     const extraX = size.width - size.viewportW, extraY = size.height - size.viewportH;
-    if (extraX > 1) scene.x = clamp(dragging.sceneX - (event.clientX - dragging.x) / extraX * 100, 0, 100);
-    if (extraY > 1) scene.y = clamp(dragging.sceneY - (event.clientY - dragging.y) / extraY * 100, 0, 100);
+    const screenX = event.clientX - dragging.x, screenY = event.clientY - dragging.y;
+    const dx = sidewaysLayout.matches ? screenY : screenX;
+    const dy = sidewaysLayout.matches ? -screenX : screenY;
+    if (extraX > 1) scene.x = clamp(dragging.sceneX - dx / extraX * 100, 0, 100);
+    if (extraY > 1) scene.y = clamp(dragging.sceneY - dy / extraY * 100, 0, 100);
     renderScene();
   });
   const endDrag = () => { if (dragging) persistScene(); dragging = null; };
