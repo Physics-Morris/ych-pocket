@@ -7,13 +7,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="YCH Pocket">
-  <meta name="description" content="A little throwback. A playable water ring-toss toy, made for two thumbs and an iPhone turned sideways.">
-  <title>YCH Pocket — A little throwback</title>
+  <meta name="description" content="Nostalgia Game 1: a playable water ring-toss toy, made for two thumbs and an iPhone turned sideways.">
+  <title>YCH Pocket — Nostalgia Game 1</title>
   <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ych-theme.css">
+  <link rel="stylesheet" href="toolbar.css">
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -21,6 +22,12 @@
     <header class="masthead">
       <a class="wordmark" href="./" aria-label="YCH Pocket home">YCH</a>
       <span class="edition">水中套圈圈 · POCKET WATER GAME</span>
+      <nav class="game-toolbar" aria-label="Game controls">
+        <button type="button" class="toolbar-control" id="sound" aria-label="Turn sound on" aria-pressed="false"><span class="toolbar-icon" aria-hidden="true">♪</span><span id="sound-label">SOUND OFF</span></button>
+        <button type="button" class="toolbar-control" id="backgrounds"><span class="toolbar-icon" aria-hidden="true">▧</span><span>SCENE</span></button>
+        <button type="button" class="toolbar-control" id="restart"><span class="toolbar-icon" aria-hidden="true">↻</span><span>RESET</span></button>
+        <button type="button" class="toolbar-control" id="fullscreen" aria-label="Full screen or iPhone installation instructions"><span class="toolbar-icon" aria-hidden="true">⛶</span><span id="fullscreen-label">FULL SCREEN</span></button>
+      </nav>
     </header>
 
     <section class="play-area" aria-label="Water ring-toss game">
@@ -35,7 +42,6 @@
             <div class="grip-top" aria-hidden="true"><span class="emboss-letter">A</span><span class="speaker"></span></div>
             <div class="pump-socket"><button type="button" class="pump" id="pump-left" aria-label="Left water pump. Keyboard A or left arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
             <span class="pump-label" aria-hidden="true">LEFT JET</span>
-            <button type="button" class="small-control sound-control" id="sound" aria-label="Turn sound on" aria-pressed="false"><span class="sound-glyph" aria-hidden="true">♪</span><span id="sound-label">SOUND OFF</span></button>
             <div class="grip-ridges" aria-hidden="true"></div>
           </div>
 
@@ -57,7 +63,6 @@
             <div class="grip-top" aria-hidden="true"><span class="speaker"></span><span class="emboss-letter">B</span></div>
             <div class="pump-socket"><button type="button" class="pump" id="pump-right" aria-label="Right water pump. Keyboard D or right arrow."><span class="pump-face" aria-hidden="true"><span class="pump-mark"></span></span></button></div>
             <span class="pump-label" aria-hidden="true">RIGHT JET</span>
-            <div class="utility-controls"><button type="button" class="small-control" id="backgrounds"><span class="control-symbol" aria-hidden="true">▧</span><span>SCENE</span></button><button type="button" class="small-control" id="restart"><span class="control-symbol" aria-hidden="true">↻</span><span>RESET</span></button></div>
             <div class="grip-ridges" aria-hidden="true"></div>
           </div>
         </div>
@@ -75,6 +80,7 @@
     <p class="rotate-eyebrow">BETTER SIDEWAYS</p>
     <h1>A little room<br>for both thumbs.</h1>
     <p>Turn your iPhone sideways<br>to pick up and play.</p>
+    <button type="button" class="rotate-fullscreen" id="portrait-fullscreen">Play full screen ↗</button>
     <span class="rotate-note">Keep Portrait Orientation Lock turned off.</span>
   </div>
 
@@ -93,6 +99,18 @@
     </div>
   </dialog>
 
-  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Press the yellow buttons to send a little jet of water through the tank. Let the rings drift down over the pink posts. Catch all twelve.</p><p>Use both thumbs on a phone, or <kbd>A</kbd> / <kbd>D</kbd> and the arrow keys on a keyboard. Each press gives one little push.</p><p>Tap <b>SCENE</b> to change the picture inside your toy. Tap <b>RESET</b> for a fresh handful of rings.</p><div class="install-tip"><b>Make it a pocket toy.</b><span>On iPhone, open in Safari, tap Share, then Add to Home Screen for a view without the browser toolbar. Play with your phone sideways.</span></div><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Press the yellow buttons to send a little jet of water through the tank. Let the rings drift down over the pink posts. Catch all twelve.</p><p>Use both thumbs on a phone, or <kbd>A</kbd> / <kbd>D</kbd> and the arrow keys on a keyboard. Each press gives one little push.</p><p>Use the toolbar above the toy to change the <b>SCENE</b>, toggle <b>SOUND</b>, or <b>RESET</b> for a fresh handful of rings.</p><div class="install-tip"><b>Make it a pocket toy.</b><span>On iPhone, open in Safari, tap Share, then Add to Home Screen. Launch YCH Pocket from its new Home Screen icon and turn your phone sideways.</span></div><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
+
+  <dialog id="install-dialog" class="help-dialog install-dialog" aria-labelledby="install-title">
+    <div class="dialog-heading"><div><span class="eyebrow">MORE TOY. LESS BROWSER.</span><h2 id="install-title">Full screen on iPhone.</h2></div><button type="button" class="close-button" id="close-install" aria-label="Close full-screen instructions">×</button></div>
+    <ol class="install-steps">
+      <li>Open this game in <b>Safari</b> and tap <b>Share</b>.</li>
+      <li>Choose <b>Add to Home Screen</b>. If shown, turn on <b>Open as Web App</b>, then tap <b>Add</b>.</li>
+      <li>Open <b>YCH Pocket</b> using its new Home Screen icon.</li>
+      <li>Turn off <b>Portrait Orientation Lock</b> in Control Center and turn your iPhone sideways.</li>
+    </ol>
+    <p class="install-explanation">Opening from the Home Screen removes Safari’s address bar and tabs. Rotating a regular Safari tab doesn’t automatically enter full screen.</p>
+    <button type="button" class="done-button" id="got-install">Got it →</button>
+  </dialog>
 </body>
 </html>

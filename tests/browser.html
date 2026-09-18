@@ -9,18 +9,26 @@ for(const [id,w,h] of [['landscape',844,390],['compact',667,375],['short',844,29
 window.addEventListener('resize',fit);fit();
 frame.onload=async()=>{try{
  const doc=frame.contentDocument,win=frame.contentWindow;
- for(const [w,h] of [[844,390],[852,393],[667,375],[844,290]]){
+ for(const [w,h] of [[844,390],[852,393],[667,375],[844,290],[667,260]]){
   await size(w,h);
   const shell=doc.querySelector('.shell').getBoundingClientRect();
-  const buttons=[...doc.querySelectorAll('.pump,.small-control')];
+  const buttons=[...doc.querySelectorAll('.pump,.toolbar-control')].filter(b=>!b.hidden);
   const controls=buttons.map(e=>e.getBoundingClientRect());
   check(`${w}×${h}: no page overflow`,doc.documentElement.scrollWidth<=w+1 && doc.documentElement.scrollHeight<=h+1);
-  check(`${w}×${h}: every control ≥44px and inside the machine`,controls.every(r=>r.width>=43.5&&r.height>=43.5&&r.left>=shell.left&&r.right<=shell.right+1&&r.top>=shell.top&&r.bottom<=shell.bottom+1));
-  check(`${w}×${h}: small controls are not clipped by the curved shell`,buttons.filter(b=>b.classList.contains('small-control')).every(b=>{const r=b.getBoundingClientRect();return [[r.left+7,r.top+7],[r.right-7,r.top+7],[r.left+7,r.bottom-7],[r.right-7,r.bottom-7]].every(([x,y])=>b.contains(doc.elementFromPoint(x,y)))}));
+  check(`${w}×${h}: every control ≥44px and inside the viewport`,controls.every(r=>r.width>=43.5&&r.height>=43.5&&r.left>=0&&r.right<=w&&r.top>=0&&r.bottom<=h));
+  check(`${w}×${h}: utility controls sit outside the toy and remain tappable`,buttons.filter(b=>b.classList.contains('toolbar-control')).every(b=>{const r=b.getBoundingClientRect();return r.bottom<shell.top&&[[r.left+7,r.top+7],[r.right-7,r.top+7],[r.left+7,r.bottom-7],[r.right-7,r.bottom-7]].every(([x,y])=>b.contains(doc.elementFromPoint(x,y)))}));
   check(`${w}×${h}: tank visible, no portrait overlay`,doc.querySelector('#tank').getBoundingClientRect().height>120 && win.getComputedStyle(doc.querySelector('#rotate-screen')).display==='none');
  }
  await size(390,844);check('Portrait: rotate prompt is visible',win.getComputedStyle(doc.querySelector('#rotate-screen')).display==='flex');
+ doc.querySelector('#portrait-fullscreen').click();await paint();check('Portrait: full-screen installation instructions are reachable',doc.querySelector('#install-dialog').open&&doc.querySelector('#install-dialog').textContent.includes('Home Screen'));
+ doc.querySelector('#got-install').click();
  await size(844,390);
+ // Simulate iPhone's missing element-fullscreen APIs without relying on desktop permissions.
+ const root=doc.documentElement,fullscreenDescriptors=['requestFullscreen','webkitRequestFullscreen'].map(name=>[name,Object.getOwnPropertyDescriptor(root,name)]);
+ for(const [name] of fullscreenDescriptors)Object.defineProperty(root,name,{value:undefined,configurable:true});
+ doc.querySelector('#fullscreen').click();await paint();check('Unavailable fullscreen falls back to installation guidance (request: '+typeof root.requestFullscreen+', prefixed: '+typeof root.webkitRequestFullscreen+', fullscreen: '+Boolean(doc.fullscreenElement || doc.webkitFullscreenElement)+')',doc.querySelector('#install-dialog').open);doc.querySelector('#got-install').click();
+ for(const [name,descriptor] of fullscreenDescriptors){if(descriptor)Object.defineProperty(root,name,descriptor);else delete root[name]}
+ doc.querySelector('#sound').click();check('Toolbar sound control still works',doc.querySelector('#sound').getAttribute('aria-pressed')==='true');doc.querySelector('#sound').click();
  doc.querySelector('#backgrounds').click();await paint();
  check('Scene dialog opens',doc.querySelector('#scene-dialog').open);
  doc.querySelector('[data-scene="space"]').click();
@@ -33,7 +41,7 @@ frame.onload=async()=>{try{
  check('Local photo decodes and becomes the background',!doc.querySelector('#photo-controls').hidden&&doc.querySelector('#tank-art').style.backgroundImage.includes('data:image/jpeg'));
  doc.querySelector('#zoom').value='1.5';doc.querySelector('#zoom').dispatchEvent(new win.Event('input',{bubbles:true}));
  check('Photo zoom is live',doc.querySelector('#zoom-value').textContent==='1.5×');
- await size(844,290);const dialog=doc.querySelector('#scene-dialog');check('Photo settings remain scrollable inside short landscape viewport',dialog.getBoundingClientRect().height<=290&&win.getComputedStyle(dialog).overflowY==='auto');
+ await size(844,290);const dialog=doc.querySelector('#scene-dialog');check('Photo settings remain scrollable inside short landscape viewport ('+Math.round(dialog.getBoundingClientRect().height)+'px, '+win.getComputedStyle(dialog).overflowY+')',dialog.getBoundingClientRect().height<=290&&win.getComputedStyle(dialog).overflowY==='auto');
  doc.querySelector('[data-scene="ocean"]').click();doc.querySelector('#done-scenes').click();
  check('Closing settings resumes game',!dialog.open);
  doc.querySelector('#restart').click();check('Reset returns score to zero',doc.querySelector('#score').textContent.startsWith('00'));

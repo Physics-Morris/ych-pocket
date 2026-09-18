@@ -1,4 +1,4 @@
-# YCH Pocket
+# YCH Pocket — Nostalgia Game 1
 
 A nostalgic, playable water ring-toss toy. Designed first for an iPhone held horizontally, with independent thumb pumps, 12 floating rings, two pink posts, sound, and customizable artwork inside the tank.
 
@@ -24,6 +24,7 @@ The live site is served by GitHub Pages from the root of the `main` branch. Push
 - Time the pulses so rings fall over the tips of the posts. Catch all 12 to win. Captured rings remain on the posts.
 - SCENE changes only the artwork behind the water. Choose Ocean, Sunset, Space, or a personal image. Uploaded photos can be zoomed and positioned by dragging or using sliders. Changes preserve game progress.
 - RESET starts a new round. SOUND toggles synthesized audio, off by default.
+- Sound, Scene, Reset, and Full Screen are in a separate toolbar above the toy, outside its curved casing. Full Screen uses the browser API where supported; on iPhone it explains how to add the game to the Home Screen and launch it without Safari’s toolbar. The same guide is available from the portrait screen.
 - Scene, photo, and sound preferences are saved locally where browser storage is available. Gameplay starts fresh on reload. Photos are resized and stored on the device; nothing is uploaded to a server.
 
 ## Implementation
@@ -39,5 +40,5 @@ YCH branding with warm paper, ink outlines, hard offset shadows, bold type, and 
 ## Verification
 
 - `node tests/game.test.cjs`: seven checks covering localized impulses, independent pointer release, valid/invalid catches, scene changes, win/reset, and stable long-running physics.
-- Open `/tests/browser.html` on the local server: 24 real-browser checks for landscape layouts at 844×390, 852×393, 667×375, and 844×290; portrait guidance; unclipped 44px controls; photo decoding and zoom; and scene/reset interactions. These passed in desktop Safari. The page creates a synthetic test image locally and finishes on the Ocean preset.
+- Open `/tests/browser.html` on the local server for real-browser checks of landscape layouts at 844×390, 852×393, 667×375, 844×290, and 667×260; portrait and full-screen guidance; unclipped 44px toolbar controls; photo decoding and zoom; and scene/sound/reset interactions. The page creates a synthetic test image locally and finishes on the Ocean preset.
 - Desktop Chrome was visually checked for the YCH styling and live pump/ring motion. Actual iPhone hardware, iOS safe-area behavior, and Home Screen installation still need device testing.

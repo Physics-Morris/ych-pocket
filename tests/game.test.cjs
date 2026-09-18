@@ -20,7 +20,7 @@ function runTests() {
   }
   const element = id => { if (!elements.has(id)) elements.set(id, new Element(id)); return elements.get(id); };
   const presets = ['ocean', 'sunset', 'space'].map(name => { const el = element(name); el.dataset.scene = name; return el; });
-  const doc = new Element('document'); doc.hidden = false; doc.getElementById = element; doc.querySelectorAll = () => presets;
+  const doc = new Element('document'); doc.hidden = false; doc.getElementById = element; doc.querySelectorAll = () => presets; doc.documentElement = new Element('html');
   const win = new Element('window'); win.devicePixelRatio = 2; win.isSecureContext = false;
   const storage = new Map();
   let seed = 71821;

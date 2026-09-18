@@ -8,6 +8,7 @@
   const tank = $('tank');
   const sceneDialog = $('scene-dialog');
   const helpDialog = $('help-dialog');
+  const installDialog = $('install-dialog');
   const portrait = matchMedia('(max-width: 700px) and (orientation: portrait)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const colors = ['#f26974', '#ffdf3f', '#60c379', '#597bd4'];
@@ -24,7 +25,7 @@
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const random = (lo, hi) => lo + Math.random() * (hi - lo);
   const announce = message => { $('announcement').textContent = message; };
-  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || portrait.matches;
+  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || portrait.matches;
 
   function updateScore() {
     $('score').innerHTML = `${String(caught).padStart(2, '0')}<span> / ${TOTAL}</span>`;
@@ -380,7 +381,44 @@
   $('how-to').addEventListener('click', () => openDialog(helpDialog));
   $('close-help').addEventListener('click', () => helpDialog.close());
   $('got-it').addEventListener('click', () => helpDialog.close());
-  [sceneDialog, helpDialog].forEach(dialog => {
+  $('close-install').addEventListener('click', () => installDialog.close());
+  $('got-install').addEventListener('click', () => installDialog.close());
+  $('portrait-fullscreen').addEventListener('click', () => openDialog(installDialog));
+
+  const standaloneMode = matchMedia('(display-mode: standalone)');
+  const fullscreenMode = matchMedia('(display-mode: fullscreen)');
+  function updateScreenMode() {
+    const installed = navigator.standalone === true || standaloneMode.matches;
+    const fullscreen = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    $('fullscreen').hidden = installed || (fullscreenMode.matches && !fullscreen);
+    $('portrait-fullscreen').hidden = installed || fullscreenMode.matches;
+    $('fullscreen-label').textContent = fullscreen ? 'EXIT SCREEN' : 'FULL SCREEN';
+    $('fullscreen').setAttribute('aria-label', fullscreen ? 'Exit full screen' : 'Full screen or iPhone installation instructions');
+  }
+  $('fullscreen').addEventListener('click', async () => {
+    const root = document.documentElement;
+    const fullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+    const request = root.requestFullscreen || root.webkitRequestFullscreen;
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    const enabled = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
+    releaseInputs();
+    try {
+      if (fullscreen && exit) await exit.call(document);
+      else if (request && enabled !== false) await request.call(root);
+      else openDialog(installDialog);
+    } catch {
+      // iPhone Safari does not expose general element fullscreen. Installation is its reliable path.
+      openDialog(installDialog);
+    }
+    updateScreenMode();
+  });
+  document.addEventListener('fullscreenchange', updateScreenMode);
+  document.addEventListener('webkitfullscreenchange', updateScreenMode);
+  standaloneMode.addEventListener('change', updateScreenMode);
+  fullscreenMode.addEventListener('change', updateScreenMode);
+  updateScreenMode();
+
+  [sceneDialog, helpDialog, installDialog].forEach(dialog => {
     let downOutside = false;
     const outside = event => {
       const rect = dialog.getBoundingClientRect();
