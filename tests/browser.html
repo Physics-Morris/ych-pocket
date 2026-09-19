@@ -10,10 +10,12 @@ window.addEventListener('resize',fit);fit();
 frame.onload=async()=>{try{
  const doc=frame.contentDocument,win=frame.contentWindow;
  if(!doc.querySelector('#game'))return;
+ const setupTankHeights=new Map();
  // The default iPhone-style permission guide is intentionally modal before play.
  if(doc.querySelector('#tilt-dialog').open){check('Default gravity setup is shown before play',doc.querySelector('#tilt-dialog').textContent.includes('On by default'));doc.querySelector('#done-tilt').click();await paint()}
  for(const [w,h] of [[844,390],[852,393],[667,375],[844,290],[667,260],[390,844],[375,667],[320,568],[430,932]]){
   await size(w,h);
+  setupTankHeights.set(`${w}x${h}`,doc.querySelector('#tank').clientHeight);
   const shell=doc.querySelector('.shell').getBoundingClientRect();
   const buttons=[...doc.querySelectorAll('.pump,.toolbar-control,.round-bar .round-control')].filter(b=>b.getClientRects().length);
   const controls=buttons.map(e=>e.getBoundingClientRect());
@@ -63,10 +65,29 @@ frame.onload=async()=>{try{
  check('Color Match and three fish can be selected before starting',doc.querySelector('#game').getAttribute('aria-label').includes('same-colored')&&doc.querySelector('#fish-toggle').getAttribute('aria-pressed')==='true');
  doc.querySelector('#start-game').click();await paint();await paint();
  check('Start enables pumps, starts the clock and locks the challenge',!doc.querySelector('#pump-left').disabled&&doc.querySelector('#timer').textContent!=='00:00.00'&&doc.querySelector('#game-mode').disabled&&doc.querySelector('#fish-toggle').disabled);
+ for(const [w,h] of [[844,390],[852,393],[667,375],[844,290],[667,260],[390,844],[375,667],[320,568],[430,932]]){
+  await size(w,h);
+  const tank=doc.querySelector('#tank'),shell=doc.querySelector('.shell').getBoundingClientRect();
+  check(`${w}×${h}: play hides the toolbars and enlarges the tank (${tank.clientHeight}px)`,!doc.querySelector('.masthead').getClientRects().length&&!doc.querySelector('#round-options').getClientRects().length&&!doc.querySelector('#start-game').getClientRects().length&&tank.clientHeight>setupTankHeights.get(`${w}x${h}`));
+  check(`${w}×${h}: larger toy, timer and menu fit`,doc.documentElement.scrollWidth<=w+1&&doc.documentElement.scrollHeight<=h+1&&shell.left>=0&&shell.right<=w&&shell.top>=0&&shell.bottom<=h&&[...doc.querySelectorAll('.pump,#play-menu,#timer')].every(b=>{const r=b.getBoundingClientRect();return r.left>=0&&r.right<=w&&r.top>=0&&r.bottom<=h&&(b.id==='timer'||(r.width>=43.5&&r.height>=43.5))}));
+ }
+ check('Game labels cannot be selected but the name field remains editable',win.getComputedStyle(doc.querySelector('.pump-label')).userSelect==='none'&&win.getComputedStyle(doc.querySelector('#player-name')).userSelect==='text');
+ const selectionEvent=new win.Event('selectstart',{bubbles:true,cancelable:true});doc.querySelector('.pump-label').dispatchEvent(selectionEvent);
+ const nameSelection=new win.Event('selectstart',{bubbles:true,cancelable:true});doc.querySelector('#player-name').dispatchEvent(nameSelection);
+ check('Accidental selection is blocked without blocking name editing',selectionEvent.defaultPrevented&&!nameSelection.defaultPrevented);
+ const pinch=new win.Event('gesturestart',{bubbles:true,cancelable:true});doc.dispatchEvent(pinch);
+ const zoomWheel=new win.WheelEvent('wheel',{bubbles:true,cancelable:true,ctrlKey:true});doc.dispatchEvent(zoomWheel);
+ const scrollWheel=new win.WheelEvent('wheel',{bubbles:true,cancelable:true});doc.dispatchEvent(scrollWheel);
+ check('Pinch zoom is blocked while ordinary menu scrolling remains allowed',pinch.defaultPrevented&&zoomWheel.defaultPrevented&&!scrollWheel.defaultPrevented&&win.getComputedStyle(doc.querySelector('#app')).touchAction==='none'&&doc.querySelector('meta[name="viewport"]').content.includes('maximum-scale=1'));
+ await size(844,390);doc.querySelector('#play-menu').click();await paint();
+ const menuTime=doc.querySelector('#timer').textContent;await paint();await paint();
+ check('Menu reveals reachable controls and pauses the clock',doc.querySelector('#play-menu').getAttribute('aria-expanded')==='true'&&doc.querySelector('.masthead').getClientRects().length&&doc.querySelector('#leaderboard-open').getClientRects().length&&doc.querySelector('#timer').textContent===menuTime);
  doc.querySelector('#leaderboard-open').click();await paint();
  const stoppedTime=doc.querySelector('#timer').textContent;await paint();await paint();
  check('Times opens the selected board and pauses the timer',doc.querySelector('#leaderboard-dialog').open&&doc.querySelector('#leaderboard-mode').dataset.challenge==='color-fish'&&doc.querySelector('#timer').textContent===stoppedTime);
- doc.querySelector('#close-leaderboard').click();doc.querySelector('#restart').click();
+ doc.querySelector('#close-leaderboard').click();doc.querySelector('#play-menu').click();await paint();await paint();
+ check('Resume hides the controls and restarts the clock',doc.querySelector('#play-menu').getAttribute('aria-expanded')==='false'&&!doc.querySelector('.masthead').getClientRects().length&&doc.querySelector('#timer').textContent!==menuTime);
+ doc.querySelector('#play-menu').click();doc.querySelector('#restart').click();
  doc.querySelector('#game-mode').value='classic';doc.querySelector('#game-mode').dispatchEvent(new win.Event('change'));doc.querySelector('#fish-toggle').click();
  await size(844,390);
  doc.querySelector('#sound').click();check('Toolbar sound control still works',doc.querySelector('#sound').getAttribute('aria-pressed')==='true');doc.querySelector('#sound').click();

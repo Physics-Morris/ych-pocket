@@ -111,8 +111,13 @@ function runTests() {
     place(ring, post.x, post.tip - .3, 80); game.step(1 / 120);
     for (let i = 0; i < 400; i++) game.step(1 / 120);
     const settledY = ring.y;
-    game.pump(0); game.step(1 / 120);
+    const looseRing = game.rings[1]; place(looseRing, ring.x, ring.y, 0);
+    game.pump(0);
+    assert(Math.abs(ring.vy) < Math.abs(looseRing.vy) * .65, 'threaded hoops should resist the same jet more than loose hoops');
+    game.step(1 / 120);
     assert(ring.y < settledY, 'caught rings must respond to the jet immediately');
+    for (let i = 0; i < 240; i++) game.step(1 / 120);
+    assert(ring.caught, 'one pump should leave a settled, heavier hoop on its post');
     let escaped = false;
     for (let i = 0; i < 240; i++) {
       if (i % 20 === 0) game.pump(0);
@@ -175,6 +180,25 @@ function runTests() {
     doc.hidden = true; doc.emit('visibilitychange'); now += 20000; game.frame(now);
     doc.hidden = false; doc.emit('visibilitychange'); game.frame(now); now += 700; game.frame(now);
     assert.equal(game.elapsed, 2700);
+  });
+  test('play menu pauses inputs and the clock, then resumes without losing progress', () => {
+    place(game.rings[0], game.posts[0].x, game.posts[0].tip - .3, 80); game.step(1 / 120);
+    now += 1200; game.frame(now);
+    element('play-menu').emit('click');
+    assert.equal(element('play-menu')['aria-expanded'], 'true');
+    assert.equal(element('timer-label').textContent, 'PAUSED');
+    const positions = () => JSON.stringify(game.rings.map(({ post, ...ring }) => ring));
+    const before = positions();
+    now += 8000; game.pump(0); game.frame(now);
+    assert.equal(positions(), before); assert.equal(game.elapsed, 1200);
+    element('backgrounds').emit('click'); element('done-scenes').emit('click');
+    now += 2000; game.frame(now); assert.equal(game.elapsed, 1200, 'closing a dialog keeps the menu paused');
+    doc.emit('keydown', { key: 'Escape' });
+    assert.equal(element('play-menu')['aria-expanded'], 'false'); assert.equal(game.caught, 1);
+    game.frame(now); now += 500; game.frame(now); assert.equal(game.elapsed, 1700);
+    element('play-menu').emit('click'); element('restart').emit('click');
+    assert.equal(game.state, 'ready'); assert.equal(element('play-menu').hidden, true);
+    assert(!element('app').classes.has('is-running'));
   });
   test('Color Match provides all four targets and rejects wrong-color catches', () => {
     game.reset(); element('game-mode').emit('change', { target: { value: 'color' } }); game.startRound();

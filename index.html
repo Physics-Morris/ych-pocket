@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#EFEBE0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,11 +20,11 @@
   <script src="app.js" defer></script>
 </head>
 <body>
-  <main class="app">
+  <main class="app" id="app">
     <header class="masthead">
-      <a class="wordmark" href="./" aria-label="YCH Pocket home">YCH</a>
+      <a class="wordmark" href="./" aria-label="YCH Pocket home" draggable="false">YCH</a>
       <span class="edition">水中套圈圈 · POCKET WATER GAME</span>
-      <nav class="game-toolbar" aria-label="Game controls">
+      <nav class="game-toolbar" id="game-toolbar" aria-label="Game controls">
         <button type="button" class="toolbar-control" id="sound" aria-label="Turn sound on" aria-pressed="false"><span class="toolbar-icon" aria-hidden="true">♪</span><span id="sound-label">SOUND OFF</span></button>
         <button type="button" class="toolbar-control" id="backgrounds"><span class="toolbar-icon" aria-hidden="true">▧</span><span>SCENE</span></button>
         <button type="button" class="toolbar-control" id="restart"><span class="toolbar-icon" aria-hidden="true">↻</span><span>RESET</span></button>
@@ -48,6 +48,7 @@
       </form>
       <div class="round-actions">
         <div class="round-clock"><span id="timer-label">READY</span><output id="timer" aria-label="Completion time">00:00.00</output></div>
+        <button type="button" class="round-control" id="play-menu" aria-expanded="false" aria-controls="game-toolbar leaderboard-open" hidden>☰ MENU</button>
         <button type="button" class="round-control" id="start-game">START</button>
         <button type="button" class="round-control" id="leaderboard-open" aria-label="View time leaderboards">TIMES ↗</button>
       </div>
@@ -127,7 +128,7 @@
     </div>
   </dialog>
 
-  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Choose <b>Classic</b> or <b>Color Match</b>, then press <b>START</b> to begin the timer. Classic accepts rings on any pink post. Color Match only counts a ring on its same-colored post.</p><p>Press the left yellow button to push rings up and right; the right pushes up and left. Use both thumbs, <kbd>A</kbd> / <kbd>D</kbd>, or the arrow keys. Caught rings can slide up and blow off a post, reducing your score!</p><p>Turn <b>FISH ON</b> before starting to bring the three background fish to life. They swim left and right, rise and dive, and occasionally peck rings. When the round stops, they return and blend back into the scenery. Mode and fish settings stay fixed during a round; <b>RESET</b> returns to setup.</p><p>Catch all twelve at once to stop the timer. Your final scene stays visible. Enter your name above the toy and tap <b>SAVE</b>, then open <b>TIMES</b> to see the fastest ten on this device. Each mode and fish setting has a separate board. The timer pauses while settings are open or the page is hidden.</p><p>Tap <b>TILT</b> to steer with real gravity. Lower the top edge to lift rings and the bottom edge to settle them. Change the <b>SCENE</b> or toggle <b>SOUND</b> above the toy.</p><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Choose <b>Classic</b> or <b>Color Match</b>, then press <b>START</b> to begin the timer. Classic accepts rings on any pink post. Color Match only counts a ring on its same-colored post.</p><p>Press the left yellow button to push rings up and right; the right pushes up and left. Use both thumbs, <kbd>A</kbd> / <kbd>D</kbd>, or the arrow keys. Caught rings get a little heavier. They can still slide up and blow off a post with repeated pushes, reducing your score!</p><p>Turn <b>FISH ON</b> before starting to bring the three background fish to life. They swim left and right, rise and dive, and occasionally peck rings. When the round stops, they return and blend back into the scenery. Mode and fish settings stay fixed during a round; <b>RESET</b> returns to setup.</p><p>Catch all twelve at once to stop the timer. Your final scene stays visible. Enter your name above the toy and tap <b>SAVE</b>, then open <b>TIMES</b> to see the fastest ten on this device. Each mode and fish setting has a separate board. The controls tuck away during play so the toy can fill more of the screen. Tap <b>MENU</b> to pause and show them, then <b>RESUME</b> to continue. The timer also pauses while settings are open or the page is hidden.</p><p>Tap <b>TILT</b> to steer with real gravity. Lower the top edge to lift rings and the bottom edge to settle them. Change the <b>SCENE</b> or toggle <b>SOUND</b> above the toy.</p><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
 
   <dialog id="tilt-dialog" class="help-dialog tilt-dialog" aria-labelledby="tilt-title">
     <div class="dialog-heading"><div><span class="eyebrow">A LITTLE TWIST. A LITTLE GRAVITY.</span><h2 id="tilt-title">Steer the water.</h2></div><button type="button" class="close-button" id="close-tilt" aria-label="Close tilt controls">×</button></div>

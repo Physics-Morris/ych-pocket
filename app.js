@@ -3,6 +3,7 @@
 
   const $ = id => document.getElementById(id);
   const W = 640, H = 400, TOTAL = 12, RADIUS = 15;
+  const CAUGHT_WEIGHT = 1.25;
   const canvas = $('game');
   const ctx = canvas.getContext('2d');
   const tank = $('tank');
@@ -26,6 +27,7 @@
   const keySides = new Map();
   let rings = [], bubbles = [], pulses = [], caught = 0, tick = 0;
   let fishes = [], mode = 'classic', fishEnabled = false, roundState = 'ready';
+  let controlsOpen = false;
   let elapsedMs = 0, clockAnchor = null, roundResult = null;
   let leaderboard = {};
   let selectedBoard = 'classic-calm';
@@ -39,7 +41,8 @@
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const random = (lo, hi) => lo + Math.random() * (hi - lo);
   const announce = message => { $('announcement').textContent = message; };
-  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || tiltDialog.open || leaderboardDialog.open;
+  const dialogOpen = () => sceneDialog.open || helpDialog.open || installDialog.open || tiltDialog.open || leaderboardDialog.open;
+  const paused = () => document.hidden || controlsOpen || dialogOpen();
 
   function formatTime(ms) {
     const centiseconds = Math.floor(ms / 10);
@@ -56,6 +59,11 @@
 
   function updateRoundUI() {
     const running = roundState === 'running', finished = roundState === 'finished';
+    $('app').classList.toggle('is-running', running);
+    $('app').classList.toggle('controls-open', running && controlsOpen);
+    $('play-menu').hidden = !running;
+    $('play-menu').textContent = controlsOpen ? 'RESUME ▶' : '☰ MENU';
+    $('play-menu').setAttribute('aria-expanded', String(running && controlsOpen));
     $('start-game').disabled = running;
     $('start-game').textContent = finished ? 'NEW ROUND' : running ? 'PLAYING' : 'START';
     $('game-mode').value = mode;
@@ -65,7 +73,7 @@
     $('fish-toggle').textContent = fishEnabled ? 'FISH ON · 3' : 'FISH OFF';
     $('round-options').hidden = finished;
     $('score-entry').hidden = !finished;
-    $('timer-label').textContent = finished ? 'FINISHED' : running ? 'TIME' : 'READY';
+    $('timer-label').textContent = finished ? 'FINISHED' : running ? controlsOpen ? 'PAUSED' : 'TIME' : 'READY';
     $('water-status').textContent = finished ? '12 / 12 · COMPLETE' : !running ? 'PRESS START' : mode === 'color' ? 'MATCH THE COLORS' : tilt.ready ? 'TILT TO STEER' : 'CATCH ALL 12';
     pumpButtons.forEach(button => { button.disabled = !running; });
   }
@@ -76,6 +84,7 @@
     clockAnchor = performance.now();
     lastTime = 0;
     updateRoundUI();
+    pumpButtons[0].focus({ preventScroll: true });
     announce(`${mode === 'color' ? 'Color Match' : 'Classic'} started${fishEnabled ? ' with three fish' : ''}. Catch all twelve rings. Pumps can blow caught rings off the posts.`);
   }
 
@@ -98,7 +107,7 @@
 
   function reset() {
     caught = 0;
-    roundState = 'ready'; elapsedMs = 0; clockAnchor = null; roundResult = null;
+    roundState = 'ready'; controlsOpen = false; elapsedMs = 0; clockAnchor = null; roundResult = null;
     accumulator = 0; lastTime = 0;
     posts.splice(0, posts.length, ...(mode === 'color' ? [140, 260, 380, 500] : [190, 320, 450]).map((x, i) => ({ x, tip: 195, rings: [], color: mode === 'color' ? colors[i] : null })));
     rings = Array.from({ length: TOTAL }, (_, i) => ({
@@ -195,7 +204,7 @@
       const dx = Math.abs(ring.x - sourceX);
       const proximity = Math.exp(-(dx * dx) / (2 * 165 * 165));
       const height = .55 + .45 * (ring.y / H);
-      const force = proximity * height * (ring.caught ? .72 : 1);
+      const force = proximity * height * (ring.caught ? .72 / CAUGHT_WEIGHT : 1);
       ring.vy = Math.max(-550, ring.vy - (480 + random(-18, 18)) * force);
       // Each jet drives across the tank, regardless of the nearest post.
       ring.vx = clamp(ring.vx + direction * (220 + random(-15, 15)) * force, -380, 380);
@@ -305,9 +314,10 @@
       fish.turn += (fish.facing / fishHomes[index].facing - fish.turn) * (1 - Math.exp(-9 * dt));
       if (fish.target && Math.abs(fish.turn) > .7 && Math.hypot(fish.target.x - (fish.x + fish.facing * 19), fish.target.y - fish.y) < 9) {
         const ring = fish.target;
-        ring.vx = clamp(ring.vx + fish.facing * random(42, 65), -380, 380);
-        ring.vy = Math.max(-550, ring.vy - random(65, 95));
-        ring.spin += fish.facing * 1.8;
+        const weight = ring.caught ? CAUGHT_WEIGHT : 1;
+        ring.vx = clamp(ring.vx + fish.facing * random(42, 65) / weight, -380, 380);
+        ring.vy = Math.max(-550, ring.vy - random(65, 95) / weight);
+        ring.spin += fish.facing * 1.8 / weight;
         fish.peck = .25;
         fish.target = null;
         fish.cooldown = random(4, 7);
@@ -554,6 +564,9 @@
   });
 
   document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && controlsOpen && !dialogOpen()) {
+      event.preventDefault(); togglePlayMenu(); return;
+    }
     if (event.altKey || event.metaKey || event.ctrlKey || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || event.target.isContentEditable || paused() || roundState !== 'running') return;
     const sides = { a: 0, ArrowLeft: 0, d: 1, ArrowRight: 1 };
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
@@ -571,6 +584,27 @@
   window.addEventListener('blur', releaseInputs);
   document.addEventListener('visibilitychange', () => { pauseClock(); releaseInputs(); if (!document.hidden) tilt.refresh(); });
   sidewaysLayout.addEventListener('change', () => { releaseInputs(); lastTime = 0; tilt.refresh(); resize(); });
+
+  // Repeated touches and long presses should operate the toy, not select its labels.
+  const editingText = target => /^(INPUT|TEXTAREA)$/.test(target.tagName) || target.isContentEditable;
+  ['selectstart', 'dragstart', 'contextmenu'].forEach(type => document.addEventListener(type, event => {
+    if (!editingText(event.target)) event.preventDefault();
+  }));
+  // Safari gesture events cover devices that ignore the viewport zoom limits.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(type => document.addEventListener(type, event => event.preventDefault(), { passive: false }));
+  document.addEventListener('wheel', event => { if (event.ctrlKey) event.preventDefault(); }, { passive: false });
+  document.addEventListener('keydown', event => {
+    if ((event.ctrlKey || event.metaKey) && ['+', '=', '-', '0'].includes(event.key)) event.preventDefault();
+  });
+
+  function togglePlayMenu() {
+    if (roundState !== 'running' || dialogOpen()) return;
+    pauseClock(); releaseInputs();
+    controlsOpen = !controlsOpen;
+    updateRoundUI();
+    announce(controlsOpen ? 'Paused. Game controls are open. Choose Resume to keep playing.' : 'Resumed.');
+  }
+  $('play-menu').addEventListener('click', togglePlayMenu);
 
   $('restart').addEventListener('click', reset);
   $('start-game').addEventListener('click', () => roundState === 'finished' ? reset() : startRound());

@@ -1,4 +1,10 @@
 /* The clock and finished-round entry stay outside the water. */
+html, body, body * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+html, body { touch-action: pan-x pan-y; }
+.app { touch-action: none; }
+dialog { touch-action: pan-x pan-y; }
+input:not([type="range"]):not([type="file"]), textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+a, img, svg, canvas { -webkit-user-drag: none; }
 .fish-art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: saturate(.95); }
 .round-bar { width: 100%; max-width: 1120px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .round-options, .round-actions, .score-entry { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -66,4 +72,28 @@ button.round-control:hover { background: var(--mar); }
   .grip-top { margin-bottom: 4%; height: 16%; }
   .pump-socket { min-width: 56px; width: 72%; max-width: 78px; }
   .pump-label { margin-top: 8%; }
+}
+
+/* Once play starts, give the screen to the toy. Menu restores the paused controls. */
+.app.is-running {
+  --play-chrome: 76px;
+  height: var(--game-height); min-height: 0; gap: 0; overflow: hidden;
+  padding: max(7px, var(--game-safe-top)) max(18px, var(--game-safe-right)) max(7px, var(--game-safe-bottom)) max(18px, var(--game-safe-left));
+}
+.is-running:not(.controls-open) .masthead,
+.is-running:not(.controls-open) #leaderboard-open,
+.is-running .round-options, .is-running #start-game,
+.is-running .game-heading, .is-running .play-caption, .is-running .page-footer { display: none; }
+.is-running .round-bar { flex: 0 0 46px; max-width: 1400px; justify-content: flex-end; padding: 0; }
+.is-running .round-clock { flex-direction: row; align-items: center; gap: 10px; }
+.is-running .round-actions { gap: 14px; }
+#play-menu { min-width: 84px; background: var(--paper); }
+.is-running .play-area { min-height: 0; padding: 4px 0 7px; }
+.is-running .machine { width: min(100%, 1400px, calc((var(--game-height) - var(--play-chrome) - var(--game-safe-top) - var(--game-safe-bottom)) * 2.27)); }
+.is-running.controls-open { --play-chrome: 132px; }
+.is-running .masthead { position: relative; inset: auto; flex: 0 0 51px; min-height: 51px; max-width: 1400px; padding: 0 0 6px; }
+.is-running .masthead .edition { display: none; }
+.is-running .wordmark { font-size: 24px; }
+@media (max-height: 320px) and (orientation: landscape), (max-width: 320px) and (orientation: portrait) {
+  .is-running .machine { width: min(100%, 1400px, calc((var(--game-height) - var(--play-chrome) - var(--game-safe-top) - var(--game-safe-bottom)) * 2.65)); }
 }
