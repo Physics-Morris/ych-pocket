@@ -4,13 +4,13 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-function runTests() {
+function runTests(options = {}) {
   const elements = new Map();
   const context2d = new Proxy({}, { get: (_, key) => key === 'createLinearGradient' ? () => ({ addColorStop() {} }) : () => {}, set: () => true });
   class Element {
     constructor(id) { this.id = id; this.value = ''; this.children = []; this.listeners = {}; this.open = false; this.hidden = false; this.dataset = {}; this.style = {}; this.tagName = 'BUTTON'; this.clientWidth = 560; this.clientHeight = 350; this.classes = new Set(); this.classList = { add: n => this.classes.add(n), remove: n => this.classes.delete(n), toggle: (n, value) => value ? this.classes.add(n) : this.classes.delete(n) }; }
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
-    emit(name, values = {}) { for (const listener of this.listeners[name] || []) listener({ target: this, preventDefault() {}, pointerId: 1, pointerType: 'touch', button: 0, ...values }); }
+    emit(name, values = {}) { return Promise.all((this.listeners[name] || []).map(listener => listener({ target: this, preventDefault() {}, pointerId: 1, pointerType: 'touch', button: 0, ...values }))); }
     removeEventListener(name, fn) { this.listeners[name] = (this.listeners[name] || []).filter(listener => listener !== fn); }
     setAttribute(name, value) { this[name] = value; }
     getBoundingClientRect() { return { width: 560, height: 350, left: 0, top: 0, right: 560, bottom: 350 }; }
@@ -27,6 +27,11 @@ function runTests() {
   const doc = new Element('document'); doc.hidden = false; doc.getElementById = element; doc.querySelectorAll = () => presets; doc.documentElement = new Element('html');
   doc.createElement = tag => new Element(tag);
   const win = new Element('window'); win.devicePixelRatio = 2; win.isSecureContext = false;
+  if (options.shared) {
+    win.YCH_LEADERBOARD = { url: 'https://example.supabase.co', publishableKey: 'sb_publishable_test' };
+    win.YCHLeaderboard = { create: () => options.shared };
+    win.crypto = require('node:crypto').webcrypto;
+  }
   const storage = new Map();
   let seed = 71821, now = 0;
   const math = Object.create(Math); math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -37,6 +42,7 @@ function runTests() {
   const instrumented = source.replace(/\}\)\(\);\s*$/, 'globalThis.testGame = { reset, startRound, pump, step, frame, syncClock, moveFish, tilt, get fishes() { return fishes; }, get state() { return roundState; }, get elapsed() { return elapsedMs; }, get leaderboard() { return leaderboard; }, get bubbles() { return bubbles; }, get rings() { return rings; }, get caught() { return caught; }, posts, get scene() { return scene; } }; })();');
   vm.runInNewContext(instrumented, sandbox);
   const game = sandbox.testGame;
+  if (options.shared) return { game, element, storage, win, advance: ms => { now += ms; } };
   const results = [];
   const test = (name, fn) => { game.tilt.stop(); game.reset(); element('game-mode').emit('change', { target: { value: 'classic' } }); if (element('fish-toggle')['aria-pressed'] === 'true') element('fish-toggle').emit('click'); game.startRound(); fn(); results.push(`PASS ${name}`); };
   const place = (ring, x, y, vy) => Object.assign(ring, { x, y, vx: 0, vy });

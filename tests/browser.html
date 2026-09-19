@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YCH · Browser checks</title><style>body{margin:24px;background:#efebe0;color:#161512;font:14px monospace}h1{font:900 25px Arial}button{padding:10px;border:2px solid #161512;background:#c4e70c;margin:0 8px 12px 0;font:inherit;cursor:pointer}#viewport{overflow:hidden;max-width:100%;border:2px solid #161512;margin:20px 0}iframe{display:block;border:0;transform-origin:top left}li{margin:7px 0}.fail{color:#aa2222}.pass{color:#17603d}</style><h1>YCH · Browser checks</h1><p id="status">Running real-browser checks…</p><div><button id="landscape">844 × 390 landscape</button><button id="compact">667 × 375 landscape</button><button id="short">844 × 290 with toolbar</button><button id="portrait">390 × 844 portrait</button></div><div id="viewport"><iframe id="app" title="YCH device preview"></iframe></div><ol id="results"></ol><script>
+<!doctype html><html lang="en"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YCH · Browser checks</title><style>body{margin:24px;background:#efebe0;color:#161512;font:14px monospace}h1{font:900 25px Arial}button{padding:10px;border:2px solid #161512;background:#c4e70c;margin:0 8px 12px 0;font:inherit;cursor:pointer}#viewport{overflow:hidden;max-width:100%;border:2px solid #161512;margin:20px 0}iframe{display:block;border:0;transform-origin:top left}li{margin:7px 0}.fail{color:#aa2222}.pass{color:#17603d}</style><h1>YCH · Browser checks</h1><p id="status">Running real-browser checks…</p><div><button id="landscape">844 × 390 landscape</button><button id="compact">667 × 375 landscape</button><button id="short">844 × 290 with toolbar</button><button id="portrait">390 × 844 portrait</button></div><div id="viewport"><iframe id="app" title="YCH device preview"></iframe></div><ol id="results"></ol><script src="../leaderboard-config.js"></script><script src="../leaderboard.js"></script><script>
 const frame = document.getElementById('app'), viewport = document.getElementById('viewport'), results = document.getElementById('results');
 let current = [844,390], failures = 0;
 function fit(){const scale=Math.min(1,(document.documentElement.clientWidth-52)/current[0]);frame.style.width=current[0]+'px';frame.style.height=current[1]+'px';frame.style.transform=`scale(${scale})`;viewport.style.width=(current[0]*scale)+'px';viewport.style.height=(current[1]*scale)+'px'}
@@ -136,12 +136,15 @@ frame.onload=async()=>{try{
  doc.querySelector('#close-leaderboard').click();
  if(savedTimes===null)win.localStorage.removeItem('ych-times-v1');else win.localStorage.setItem('ych-times-v1',savedTimes);
  win.localStorage.removeItem('ych-tilt-enabled');
+ const shared=window.YCHLeaderboard.create(window.YCH_LEADERBOARD);
+ if(shared) for(const board of ['classic-calm','classic-fish','color-calm','color-fish']){await shared.list(board);check('Live shared leaderboard is readable: '+board,true)}
+ document.title=`YCH QA: ${results.children.length-failures} passed, ${failures} failed`;
  await size(844,390);document.getElementById('status').textContent=failures?`${failures} checks failed.`:'All browser checks passed. Select a size to inspect the real layout.';
- }catch(error){check('Browser test execution: '+error.message,false);document.getElementById('status').textContent='Browser checks stopped: '+error.message}};
+ }catch(error){document.title='YCH QA ERROR: '+error.message;check('Browser test execution: '+error.message,false);document.getElementById('status').textContent='Browser checks stopped: '+error.message}};
 // Instrument only the test iframe so completion can be checked deterministically.
 (async()=>{
  const [html,source]=await Promise.all([fetch('../index.html').then(r=>r.text()),fetch('../app.js').then(r=>r.text())]);
  const instrumented=source.replace(/\}\)\(\);\s*$/, 'window.testGame={step,get rings(){return rings},posts};})();');
- frame.srcdoc=html.replace('<head>','<head><base href="../">').replace('<script src="tilt.js" defer>','<script src="tilt.js">').replace('<script src="app.js" defer></'+'script>','<script>window.addEventListener("DOMContentLoaded",()=>{'+instrumented+'});</'+'script>');
+  frame.srcdoc=html.replace('<head>','<head><base href="../">').replace('<script src="leaderboard-config.js" defer></'+'script>','<script>window.YCH_LEADERBOARD = {};</'+'script>').replace('<script src="tilt.js" defer>','<script src="tilt.js">').replace('<script src="app.js" defer></'+'script>','<script>window.addEventListener("DOMContentLoaded",()=>{'+instrumented+'});</'+'script>');
 })().catch(error=>{document.getElementById('status').textContent='Could not load test fixture: '+error.message});
 </script></html>

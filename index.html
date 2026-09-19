@@ -17,6 +17,8 @@
   <link rel="stylesheet" href="toolbar.css">
   <link rel="stylesheet" href="round.css">
   <script src="tilt.js" defer></script>
+  <script src="leaderboard-config.js" defer></script>
+  <script src="leaderboard.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -108,7 +110,9 @@
       <div class="board-mode-group"><span class="filter-label" id="board-mode-label">GAME MODE</span><div class="mode-segments" role="group" aria-labelledby="board-mode-label"><button type="button" class="mode-segment" id="board-classic" aria-pressed="true">CLASSIC</button><button type="button" class="mode-segment" id="board-color" aria-pressed="false">COLOR MATCH</button></div></div>
       <div class="board-fish-group"><span class="filter-label" id="board-fish-label">EXTRA CHALLENGE</span><button type="button" class="board-fish-toggle" id="board-fish" aria-pressed="false" aria-describedby="board-fish-label"><span class="toggle-track" aria-hidden="true"></span><span id="board-fish-text">FISH OFF</span></button></div>
     </div>
-    <p class="leaderboard-note">Fastest 10 on this device. Each challenge has its own board. Finish a round, then enter your name to save a time.</p>
+    <p class="leaderboard-note" id="leaderboard-note">Fastest 10 on this device. Each challenge has its own board. Finish a round, then enter your name to save a time.</p>
+    <p class="leaderboard-note" id="leaderboard-status" role="status" hidden></p>
+    <button type="button" class="round-control" id="leaderboard-retry" hidden>RETRY</button>
     <table class="leaderboard-table"><caption class="sr-only">Completion times, fastest first</caption><thead><tr><th scope="col">#</th><th scope="col">NAME</th><th scope="col">TIME</th></tr></thead><tbody id="leaderboard-rows"></tbody></table>
     <p id="leaderboard-empty">No times yet. Set the first one.</p>
   </dialog>

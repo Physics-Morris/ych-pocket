@@ -32,6 +32,10 @@
   let leaderboard = {};
   let selectedBoard = 'classic-calm';
   const leaderboardKey = 'ych-times-v1';
+  const sharedConfigured = Boolean(window.YCH_LEADERBOARD?.url || window.YCH_LEADERBOARD?.publishableKey);
+  let sharedLeaderboard = null;
+  try { sharedLeaderboard = window.YCHLeaderboard?.create(window.YCH_LEADERBOARD); } catch { /* Show unavailable without stopping the game. */ }
+  const boardRequests = {}, boardStatus = {};
   let accumulator = 0, lastTime = 0, animation = 0;
   let soundEnabled = false, audioContext = null, noiseBuffer = null;
   let tiltWanted = true, tiltPromptPending = false, closeTiltWhenReady = false;
@@ -129,6 +133,7 @@
     $('timer').textContent = formatTime(0);
     $('save-time').disabled = false;
     $('save-time').textContent = 'SAVE';
+    $('player-name').readOnly = false;
     $('score-feedback').textContent = '';
     updateRoundUI();
     updateScore();
@@ -647,27 +652,83 @@
       }
       body.appendChild(row);
     });
-    $('leaderboard-empty').hidden = entries.length > 0;
+    const status = sharedConfigured ? boardStatus[selectedBoard] || 'loading' : 'local';
+    $('leaderboard-note').textContent = sharedConfigured
+      ? 'Fastest 10 across all devices. Each challenge has its own board. Saved names and times are public.'
+      : 'Fastest 10 on this device. Each challenge has its own board. Finish a round, then enter your name to save a time.';
+    $('leaderboard-status').hidden = status === 'ready' || status === 'local';
+    $('leaderboard-status').textContent = status === 'loading' ? 'Loading shared times…'
+      : entries.length ? 'Couldn’t refresh. Showing the last loaded times.' : 'Couldn’t load shared times. Tap Retry.';
+    $('leaderboard-retry').hidden = status !== 'error';
+    $('leaderboard-empty').hidden = entries.length > 0 || (sharedConfigured && status !== 'ready');
+  }
+  async function refreshLeaderboard() {
+    if (!sharedConfigured) return;
+    const board = selectedBoard, request = (boardRequests[board] || 0) + 1;
+    boardRequests[board] = request;
+    boardStatus[board] = 'loading'; renderLeaderboard();
+    try {
+      if (!sharedLeaderboard) throw new Error('Leaderboard not configured');
+      const entries = await sharedLeaderboard.list(board);
+      if (boardRequests[board] !== request) return;
+      leaderboard[board] = entries;
+      boardStatus[board] = 'ready';
+    } catch {
+      if (boardRequests[board] !== request) return;
+      boardStatus[board] = 'error';
+    }
+    if (selectedBoard === board) renderLeaderboard();
   }
   $('leaderboard-open').addEventListener('click', () => {
     selectedBoard = boardKey(); renderLeaderboard(); openDialog(leaderboardDialog);
+    refreshLeaderboard();
   });
   [['board-classic', 'classic'], ['board-color', 'color']].forEach(([id, boardMode]) => {
     $(id).addEventListener('click', () => {
       selectedBoard = `${boardMode}-${selectedBoard.endsWith('-fish') ? 'fish' : 'calm'}`;
       renderLeaderboard();
+      refreshLeaderboard();
     });
   });
   $('board-fish').addEventListener('click', () => {
     selectedBoard = `${selectedBoard.startsWith('color-') ? 'color' : 'classic'}-${selectedBoard.endsWith('-fish') ? 'calm' : 'fish'}`;
     renderLeaderboard();
+    refreshLeaderboard();
   });
+  $('leaderboard-retry').addEventListener('click', refreshLeaderboard);
   $('close-leaderboard').addEventListener('click', () => leaderboardDialog.close());
-  $('score-entry').addEventListener('submit', event => {
+  $('score-entry').addEventListener('submit', async event => {
     event.preventDefault();
-    const name = $('player-name').value.trim().slice(0, 20);
-    if (!roundResult || roundResult.saved) return;
+    const name = $('player-name').value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
+    if (!roundResult || roundResult.saved || roundResult.saving) return;
     if (!name) { $('score-feedback').textContent = 'Enter your name first.'; $('player-name').focus(); return; }
+    if (sharedConfigured) {
+      const result = roundResult;
+      result.saving = true;
+      $('save-time').disabled = true;
+      $('save-time').textContent = 'SAVING…';
+      $('score-feedback').textContent = 'Saving your shared time…';
+      $('player-name').readOnly = true;
+      try {
+        if (!sharedLeaderboard) throw new Error('Leaderboard not configured');
+        // Keep the exact ID and name on retry, even if the first response was lost.
+        result.submission ||= { id: window.crypto.randomUUID(), name };
+        const rank = await sharedLeaderboard.save({ ...result, id: result.submission.id }, result.submission.name);
+        result.saved = true;
+        if (roundResult !== result) return;
+        $('save-time').textContent = 'SAVED';
+        const message = rank > 10 ? 'Saved online. Outside the fastest 10—try again!' : `Saved online · #${rank} in this challenge.`;
+        $('score-feedback').textContent = message;
+        announce(message);
+        if (leaderboardDialog.open) refreshLeaderboard();
+      } catch {
+        if (roundResult !== result) return;
+        $('save-time').disabled = false;
+        $('save-time').textContent = 'RETRY';
+        $('score-feedback').textContent = 'Could not confirm save. Check your connection and tap Retry.';
+      } finally { result.saving = false; }
+      return;
+    }
     // Merge any scores saved in another tab before adding this finished round.
     try { leaderboard = validBoards(JSON.parse(localStorage.getItem(leaderboardKey)) || leaderboard); } catch { /* Keep in-memory scores. */ }
     const entries = leaderboard[roundResult.key] || [];
@@ -900,7 +961,7 @@
   });
 
   try {
-    leaderboard = validBoards(JSON.parse(localStorage.getItem(leaderboardKey)));
+    leaderboard = sharedConfigured ? validBoards(null) : validBoards(JSON.parse(localStorage.getItem(leaderboardKey)));
   } catch { leaderboard = validBoards(null); }
 
   try {
