@@ -8,7 +8,7 @@ function runTests() {
   const elements = new Map();
   const context2d = new Proxy({}, { get: (_, key) => key === 'createLinearGradient' ? () => ({ addColorStop() {} }) : () => {}, set: () => true });
   class Element {
-    constructor(id) { this.id = id; this.listeners = {}; this.open = false; this.hidden = false; this.dataset = {}; this.style = {}; this.tagName = 'BUTTON'; this.clientWidth = 560; this.clientHeight = 350; this.classes = new Set(); this.classList = { add: n => this.classes.add(n), remove: n => this.classes.delete(n), toggle: (n, value) => value ? this.classes.add(n) : this.classes.delete(n) }; }
+    constructor(id) { this.id = id; this.value = ''; this.children = []; this.listeners = {}; this.open = false; this.hidden = false; this.dataset = {}; this.style = {}; this.tagName = 'BUTTON'; this.clientWidth = 560; this.clientHeight = 350; this.classes = new Set(); this.classList = { add: n => this.classes.add(n), remove: n => this.classes.delete(n), toggle: (n, value) => value ? this.classes.add(n) : this.classes.delete(n) }; }
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
     emit(name, values = {}) { for (const listener of this.listeners[name] || []) listener({ target: this, preventDefault() {}, pointerId: 1, pointerType: 'touch', button: 0, ...values }); }
     removeEventListener(name, fn) { this.listeners[name] = (this.listeners[name] || []).filter(listener => listener !== fn); }
@@ -16,25 +16,29 @@ function runTests() {
     getBoundingClientRect() { return { width: 560, height: 350, left: 0, top: 0, right: 560, bottom: 350 }; }
     getContext() { return context2d; }
     setPointerCapture() {}
+    replaceChildren() { this.children = []; }
+    appendChild(child) { this.children.push(child); }
+    focus() {}
     showModal() { this.open = true; }
     close() { this.open = false; this.emit('close'); }
   }
   const element = id => { if (!elements.has(id)) elements.set(id, new Element(id)); return elements.get(id); };
   const presets = ['ocean', 'sunset', 'space'].map(name => { const el = element(name); el.dataset.scene = name; return el; });
   const doc = new Element('document'); doc.hidden = false; doc.getElementById = element; doc.querySelectorAll = () => presets; doc.documentElement = new Element('html');
+  doc.createElement = tag => new Element(tag);
   const win = new Element('window'); win.devicePixelRatio = 2; win.isSecureContext = false;
   const storage = new Map();
-  let seed = 71821;
+  let seed = 71821, now = 0;
   const math = Object.create(Math); math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   const sidewaysQuery = { matches: false, listeners: [], addEventListener(name, fn) { this.listeners.push(fn); } };
-  const sandbox = { document: doc, window: win, navigator: {}, localStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v) }, matchMedia: query => query === '(orientation: portrait)' ? sidewaysQuery : ({ matches: false, addEventListener() {} }), ResizeObserver: class { observe() {} }, requestAnimationFrame() { return 1; }, cancelAnimationFrame() {}, setTimeout, clearTimeout, performance: { now: () => 0 }, Math: math, console };
+  const sandbox = { document: doc, window: win, navigator: {}, localStorage: { getItem: k => storage.get(k) || null, setItem: (k, v) => storage.set(k, v) }, matchMedia: query => query === '(orientation: portrait)' ? sidewaysQuery : ({ matches: false, addEventListener() {} }), ResizeObserver: class { observe() {} }, requestAnimationFrame() { return 1; }, cancelAnimationFrame() {}, setTimeout, clearTimeout, performance: { now: () => now }, Math: math, console };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'tilt.js'), 'utf8'), sandbox);
   const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-  const instrumented = source.replace(/\}\)\(\);\s*$/, 'globalThis.testGame = { reset, pump, step, tilt, get bubbles() { return bubbles; }, get rings() { return rings; }, get caught() { return caught; }, posts, get scene() { return scene; } }; })();');
+  const instrumented = source.replace(/\}\)\(\);\s*$/, 'globalThis.testGame = { reset, startRound, pump, step, frame, syncClock, moveFish, tilt, get fishes() { return fishes; }, get state() { return roundState; }, get elapsed() { return elapsedMs; }, get leaderboard() { return leaderboard; }, get bubbles() { return bubbles; }, get rings() { return rings; }, get caught() { return caught; }, posts, get scene() { return scene; } }; })();');
   vm.runInNewContext(instrumented, sandbox);
   const game = sandbox.testGame;
   const results = [];
-  const test = (name, fn) => { game.tilt.stop(); game.reset(); fn(); results.push(`PASS ${name}`); };
+  const test = (name, fn) => { game.tilt.stop(); game.reset(); element('game-mode').emit('change', { target: { value: 'classic' } }); if (element('fish-toggle')['aria-pressed'] === 'true') element('fish-toggle').emit('click'); game.startRound(); fn(); results.push(`PASS ${name}`); };
   const place = (ring, x, y, vy) => Object.assign(ring, { x, y, vx: 0, vy });
 
   test('left jet drives rings and bubbles up and right, with localized force', () => {
@@ -99,8 +103,26 @@ function runTests() {
     place(ring, post.x, post.tip - .3, 80);
     game.step(1 / 120);
     assert.equal(game.caught, 1); assert(ring.caught);
-    for (let i = 0; i < 500; i++) { if (i % 25 === 0) game.pump(i % 2); game.step(1 / 120); }
+    for (let i = 0; i < 500; i++) game.step(1 / 120);
     assert(ring.caught); assert.equal(post.rings.filter(r => r === ring).length, 1);
+  });
+  test('pumps lift threaded rings and can blow them off, decrementing the score', () => {
+    const ring = game.rings[0], post = game.posts[0];
+    place(ring, post.x, post.tip - .3, 80); game.step(1 / 120);
+    for (let i = 0; i < 400; i++) game.step(1 / 120);
+    const settledY = ring.y;
+    game.pump(0); game.step(1 / 120);
+    assert(ring.y < settledY, 'caught rings must respond to the jet immediately');
+    let escaped = false;
+    for (let i = 0; i < 240; i++) {
+      if (i % 20 === 0) game.pump(0);
+      game.step(1 / 120);
+      if (!ring.caught) { escaped = true; break; }
+    }
+    assert(escaped, 'repeated pumps must lift a hoop clear of the tip');
+    assert.equal(game.caught, 0); assert.equal(post.rings.length, 0);
+    place(ring, post.x, post.tip - .3, 80); game.step(1 / 120);
+    assert.equal(game.caught, 1); assert.equal(post.rings.length, 1);
   });
   test('rising and side-brushing rings do not count', () => {
     const ring = game.rings[0], post = game.posts[0];
@@ -118,13 +140,126 @@ function runTests() {
     element('done-scenes').emit('click');
     assert(!element('scene-dialog').open);
   });
-  test('all 12 catches win; reset clears score and posts', () => {
+  const completeRound = () => {
     for (let i = 0; i < 12; i++) {
-      place(game.rings[i], game.posts[i % 3].x, game.posts[i % 3].tip - .3, 80); game.step(1 / 120);
+      const ring = game.rings[i], post = game.posts.find(p => p.color === ring.color) || game.posts[i % 3];
+      place(ring, post.x, post.tip - .3, 80); game.step(1 / 120);
     }
+  };
+  test('all 12 catches freeze the timer and preserve the visible final scene; reset returns to setup', () => {
+    now += 43210; completeRound();
     for (let i = 0; i < 140; i++) game.step(1 / 120);
-    assert.equal(game.caught, 12); assert.equal(element('win-message').hidden, false);
-    game.reset(); assert.equal(game.caught, 0); assert(game.posts.every(p => p.rings.length === 0)); assert.equal(element('win-message').hidden, true);
+    assert.equal(game.caught, 12); assert.equal(game.state, 'finished');
+    assert.equal(game.elapsed, 43210); assert.equal(element('timer').textContent, '00:43.21');
+    assert.equal(element('score-entry').hidden, false);
+    assert(!fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8').includes('win-message'));
+    const velocities = game.rings.map(r => r.vy);
+    game.pump(0); game.pump(1); now += 5000; game.frame(now);
+    assert.equal(game.elapsed, 43210); assert.deepEqual(game.rings.map(r => r.vy), velocities);
+    game.reset(); assert.equal(game.caught, 0); assert(game.posts.every(p => p.rings.length === 0)); assert.equal(game.state, 'ready'); assert.equal(game.elapsed, 0);
+  });
+  test('start gates pumps, gravity and timer; reset and restart clear elapsed time', () => {
+    game.reset(); const before = JSON.stringify(game.rings);
+    game.pump(0); game.step(1); now += 2000; game.frame(now);
+    assert.equal(JSON.stringify(game.rings), before); assert.equal(game.elapsed, 0);
+    element('start-game').emit('click'); now += 2350; game.frame(now);
+    assert.equal(game.elapsed, 2350); assert.equal(element('timer').textContent, '00:02.35');
+    assert(element('game-mode').disabled && element('fish-toggle').disabled);
+    element('restart').emit('click'); assert.equal(game.elapsed, 0); assert.equal(game.state, 'ready');
+  });
+  test('timer counts real elapsed time despite frame caps and excludes dialogs and hidden time', () => {
+    now += 1200; game.frame(now); assert.equal(game.elapsed, 1200);
+    now += 300; element('backgrounds').emit('click'); assert.equal(game.elapsed, 1500);
+    now += 10000; game.frame(now); element('done-scenes').emit('click'); game.frame(now);
+    now += 500; game.frame(now); assert.equal(game.elapsed, 2000);
+    doc.hidden = true; doc.emit('visibilitychange'); now += 20000; game.frame(now);
+    doc.hidden = false; doc.emit('visibilitychange'); game.frame(now); now += 700; game.frame(now);
+    assert.equal(game.elapsed, 2700);
+  });
+  test('Color Match provides all four targets and rejects wrong-color catches', () => {
+    game.reset(); element('game-mode').emit('change', { target: { value: 'color' } }); game.startRound();
+    assert.equal(game.posts.length, 4);
+    assert(game.rings.every(r => game.posts.some(p => p.color === r.color)));
+    const ring = game.rings[0], wrong = game.posts[1], right = game.posts[0];
+    place(ring, wrong.x, wrong.tip - .3, 80); game.step(1 / 120);
+    assert.equal(game.caught, 0); assert(!ring.caught);
+    place(ring, right.x, right.tip - .3, 80); game.step(1 / 120);
+    assert.equal(game.caught, 1); assert.equal(ring.post, right);
+    completeRound(); assert.equal(game.state, 'finished');
+  });
+  test('fish toggle animates exactly three background fish whose pecks change ring velocity', () => {
+    assert.equal(game.fishes.length, 3);
+    assert.equal(element('fish-toggle')['aria-pressed'], 'false');
+    game.reset(); element('fish-toggle').emit('click'); game.startRound();
+    assert.equal(game.fishes.length, 3);
+    const fish = game.fishes[0], ring = game.rings[0];
+    place(ring, 250, 150, 0); Object.assign(fish, { x: 231, y: 150, vx: 0, vy: 0, facing: 1, turn: 1, target: ring, chaseTime: 2.5, cooldown: 0 });
+    game.moveFish(1 / 120);
+    assert(ring.vx > 0 && ring.vy < 0 && fish.peck > 0); assert.equal(fish.target, null);
+    game.reset(); element('fish-toggle').emit('click');
+    const before = JSON.stringify(game.rings);
+    for (let i = 0; i < 1200; i++) game.step(1 / 120);
+    assert.equal(JSON.stringify(game.rings), before, 'returning fish cannot disturb rings after reset');
+    assert(fish.blend < .001 && fish.target === null, 'fish should return and merge into the backdrop');
+    assert(Math.abs(fish.x - 124) < .01 && Math.abs(fish.y - 168.8) < .01);
+    game.startRound(); for (let i = 0; i < 1200; i++) game.moveFish(1 / 120);
+    assert.equal(JSON.stringify(game.rings), before, 'fish off means no pecks');
+  });
+  test('fish cruise both ways with more sideways travel than vertical travel and stay in the water', () => {
+    game.reset(); element('fish-toggle').emit('click'); game.startRound();
+    const tracks = game.fishes.map(fish => {
+      fish.cooldown = Infinity; // Observe ordinary swimming independently of pecking.
+      return { x: fish.x, y: fish.y, horizontal: 0, vertical: 0, minX: fish.x, maxX: fish.x, minY: fish.y, maxY: fish.y, left: false, right: false };
+    });
+    for (let frame = 0; frame < 60 * 45; frame++) {
+      game.moveFish(1 / 60);
+      game.fishes.forEach((fish, i) => {
+        const track = tracks[i];
+        track.horizontal += Math.abs(fish.x - track.x); track.vertical += Math.abs(fish.y - track.y);
+        track.left ||= fish.vx < -20; track.right ||= fish.vx > 20;
+        track.minX = Math.min(track.minX, fish.x); track.maxX = Math.max(track.maxX, fish.x);
+        track.minY = Math.min(track.minY, fish.y); track.maxY = Math.max(track.maxY, fish.y);
+        track.x = fish.x; track.y = fish.y;
+        assert(Number.isFinite(fish.x) && Number.isFinite(fish.y));
+        assert(fish.x >= 25 && fish.x <= 615 && fish.y >= 35 && fish.y <= 376);
+      });
+    }
+    for (const track of tracks) {
+      assert(track.left && track.right && track.maxX - track.minX > 400, 'each fish should cross the tank and turn around');
+      assert(track.maxY - track.minY > 50, 'fish should visibly rise and dive');
+      assert(track.horizontal > track.vertical * 1.7, 'ordinary swimming should be mostly horizontal');
+    }
+    game.reset(); for (let i = 0; i < 900; i++) game.step(1 / 120);
+    assert(game.fishes.every(fish => fish.blend < .001 && fish.vx === 0 && fish.vy === 0), 'fish settle into the background after cruising stops');
+  });
+  test('leaderboards persist named times, sort fastest first, separate all four challenges and prevent duplicate saves', () => {
+    storage.delete('ych-times-v1');
+    const finishAndSave = (ms, name) => {
+      now += ms; completeRound(); element('player-name').value = name; element('score-entry').emit('submit');
+    };
+    finishAndSave(5000, 'Slow'); element('score-entry').emit('submit');
+    assert.equal(game.leaderboard['classic-calm'].length, 1);
+    game.reset(); game.startRound(); finishAndSave(2000, '<img onerror=oops>');
+    assert.equal(game.leaderboard['classic-calm'][0].ms, 2000);
+    element('leaderboard-open').emit('click');
+    assert.equal(element('leaderboard-rows').children[0].children[1].textContent, '<img onerror=oops>');
+    element('close-leaderboard').emit('click');
+    game.reset(); element('fish-toggle').emit('click'); game.startRound(); finishAndSave(3000, 'Fish');
+    game.reset(); element('game-mode').emit('change', { target: { value: 'color' } }); game.startRound(); finishAndSave(4000, 'Match fish');
+    game.reset(); element('fish-toggle').emit('click'); game.startRound(); finishAndSave(1000, 'Match');
+    const saved = JSON.parse(storage.get('ych-times-v1'));
+    assert.deepEqual(Object.keys(saved).sort(), ['classic-calm', 'classic-fish', 'color-calm', 'color-fish']);
+    assert.equal(saved['classic-fish'][0].name, 'Fish'); assert.equal(saved['color-calm'][0].name, 'Match'); assert.equal(saved['color-fish'][0].name, 'Match fish');
+  });
+  test('empty names cannot save and storage failures retain an honest session-only board', () => {
+    now += 500; completeRound(); element('player-name').value = '   '; element('score-entry').emit('submit');
+    assert(!element('save-time').disabled);
+    const setItem = sandbox.localStorage.setItem;
+    sandbox.localStorage.setItem = () => { throw new Error('Storage unavailable'); };
+    element('player-name').value = 'Guest'; element('score-entry').emit('submit');
+    assert(element('score-feedback').textContent.includes('this visit'));
+    assert(game.leaderboard['classic-calm'].some(entry => entry.name === 'Guest'));
+    sandbox.localStorage.setItem = setItem;
   });
   test('long play remains finite and rings stay within the tank', () => {
     for (let i = 0; i < 24000; i++) { if (i % 180 === 0) game.pump(Math.floor(i / 180) % 2); game.step(1 / 120); }

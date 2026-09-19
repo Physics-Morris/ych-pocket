@@ -10,15 +10,26 @@
   const helpDialog = $('help-dialog');
   const installDialog = $('install-dialog');
   const tiltDialog = $('tilt-dialog');
+  const leaderboardDialog = $('leaderboard-dialog');
   const sidewaysLayout = matchMedia('(orientation: portrait)');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const colors = ['#f26974', '#ffdf3f', '#60c379', '#597bd4'];
-  const posts = [190, 320, 450].map(x => ({ x, tip: 195, rings: [] }));
+  const fishHomes = [
+    { x: 155, y: 211, angle: -8, facing: 1, scale: .45 },
+    { x: 608, y: 187, angle: 8, facing: -1, scale: .45 },
+    { x: 389, y: 325, angle: 0, facing: 1, scale: .75 }
+  ];
+  const posts = [];
   const tilt = new window.YCHTilt(updateTiltUI, () => sidewaysLayout.matches ? 90 : 0);
   const pumpButtons = [$('pump-left'), $('pump-right')];
   const pointers = [new Set(), new Set()];
   const keySides = new Map();
   let rings = [], bubbles = [], pulses = [], caught = 0, tick = 0;
+  let fishes = [], mode = 'classic', fishEnabled = false, roundState = 'ready';
+  let elapsedMs = 0, clockAnchor = null, roundResult = null;
+  let leaderboard = {};
+  let selectedBoard = 'classic-calm';
+  const leaderboardKey = 'ych-times-v1';
   let accumulator = 0, lastTime = 0, animation = 0;
   let soundEnabled = false, audioContext = null, noiseBuffer = null;
   let tiltWanted = true, tiltPromptPending = false, closeTiltWhenReady = false;
@@ -28,16 +39,68 @@
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const random = (lo, hi) => lo + Math.random() * (hi - lo);
   const announce = message => { $('announcement').textContent = message; };
-  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || tiltDialog.open;
+  const paused = () => document.hidden || sceneDialog.open || helpDialog.open || installDialog.open || tiltDialog.open || leaderboardDialog.open;
+
+  function formatTime(ms) {
+    const centiseconds = Math.floor(ms / 10);
+    return `${String(Math.floor(centiseconds / 6000)).padStart(2, '0')}:${String(Math.floor(centiseconds / 100) % 60).padStart(2, '0')}.${String(centiseconds % 100).padStart(2, '0')}`;
+  }
+
+  const boardKey = () => `${mode}-${fishEnabled ? 'fish' : 'calm'}`;
+  function syncClock(now = performance.now()) {
+    if (roundState === 'running' && clockAnchor !== null) elapsedMs += Math.max(0, now - clockAnchor);
+    clockAnchor = roundState === 'running' ? now : null;
+    $('timer').textContent = formatTime(elapsedMs);
+  }
+  function pauseClock() { syncClock(); clockAnchor = null; accumulator = 0; lastTime = 0; }
+
+  function updateRoundUI() {
+    const running = roundState === 'running', finished = roundState === 'finished';
+    $('start-game').disabled = running;
+    $('start-game').textContent = finished ? 'NEW ROUND' : running ? 'PLAYING' : 'START';
+    $('game-mode').value = mode;
+    $('game-mode').disabled = running;
+    $('fish-toggle').disabled = running;
+    $('fish-toggle').setAttribute('aria-pressed', String(fishEnabled));
+    $('fish-toggle').textContent = fishEnabled ? 'FISH ON · 3' : 'FISH OFF';
+    $('round-options').hidden = finished;
+    $('score-entry').hidden = !finished;
+    $('timer-label').textContent = finished ? 'FINISHED' : running ? 'TIME' : 'READY';
+    $('water-status').textContent = finished ? '12 / 12 · COMPLETE' : !running ? 'PRESS START' : mode === 'color' ? 'MATCH THE COLORS' : tilt.ready ? 'TILT TO STEER' : 'CATCH ALL 12';
+    pumpButtons.forEach(button => { button.disabled = !running; });
+  }
+
+  function startRound() {
+    if (roundState !== 'ready' || paused()) return;
+    roundState = 'running';
+    clockAnchor = performance.now();
+    lastTime = 0;
+    updateRoundUI();
+    announce(`${mode === 'color' ? 'Color Match' : 'Classic'} started${fishEnabled ? ' with three fish' : ''}. Catch all twelve rings. Pumps can blow caught rings off the posts.`);
+  }
+
+  function finishRound() {
+    if (roundState !== 'running') return;
+    syncClock();
+    roundState = 'finished';
+    clockAnchor = null;
+    roundResult = { key: boardKey(), ms: Math.max(1, Math.floor(elapsedMs)), saved: false };
+    rings.forEach(ring => { ring.vx = 0; ring.vy = 0; });
+    releaseInputs();
+    updateRoundUI();
+    announce(`All twelve rings caught in ${formatTime(elapsedMs)}. Enter your name above the toy to save your time.`);
+  }
 
   function updateScore() {
     $('score').innerHTML = `${String(caught).padStart(2, '0')}<span> / ${TOTAL}</span>`;
-    canvas.setAttribute('aria-label', `${caught} of ${TOTAL} rings caught. Use the pumps${tilt.enabled ? ' or tilt your phone' : ''} to guide the remaining rings onto the three pink posts.`);
+    canvas.setAttribute('aria-label', `${caught} of ${TOTAL} rings caught. ${mode === 'color' ? 'Match each ring to its same-colored post: red, yellow, green, blue.' : 'Catch rings on any of the three pink posts.'}${fishEnabled ? ' Three fish occasionally peck the rings.' : ''}`);
   }
 
   function reset() {
     caught = 0;
-    posts.forEach(post => { post.rings = []; });
+    roundState = 'ready'; elapsedMs = 0; clockAnchor = null; roundResult = null;
+    accumulator = 0; lastTime = 0;
+    posts.splice(0, posts.length, ...(mode === 'color' ? [140, 260, 380, 500] : [190, 320, 450]).map((x, i) => ({ x, tip: 195, rings: [], color: mode === 'color' ? colors[i] : null })));
     rings = Array.from({ length: TOTAL }, (_, i) => ({
       x: 55 + i * 48 + random(-9, 9),
       y: H - RADIUS - 10 - random(0, 35),
@@ -48,10 +111,20 @@
     }));
     bubbles = [];
     pulses = [];
-    $('win-message').hidden = true;
+    if (!fishes.length) fishes = fishHomes.map((home, i) => ({ ...fishHome(i), vx: 0, vy: 0, facing: home.facing, turn: 1, phase: i * 2, swimTime: 0, peck: 0, blend: 0 }));
+    fishes.forEach((fish, i) => {
+      fish.target = null; fish.cooldown = 3 + i * 1.2; fish.peck = 0; fish.chaseTime = 0;
+      fish.swimDirection = fishHomes[i].facing;
+      fish.cruiseY = clamp(fishHome(i).y, 75, H - 65); fish.laneTime = 2 + i * 1.5;
+    });
+    $('timer').textContent = formatTime(0);
+    $('save-time').disabled = false;
+    $('save-time').textContent = 'SAVE';
+    $('score-feedback').textContent = '';
+    updateRoundUI();
     updateScore();
     releaseInputs();
-    announce(`A fresh handful of rings. ${tilt.enabled ? 'Tilt your phone or press the yellow buttons' : 'Press the yellow buttons'} to begin.`);
+    announce('Choose a mode and optional fish, then press Start.');
     draw();
   }
 
@@ -115,15 +188,14 @@
   }
 
   function pump(side) {
-    if (paused() || caught === TOTAL) return;
+    if (paused() || roundState !== 'running') return;
     const sourceX = side === 0 ? 130 : 510;
     const direction = side === 0 ? 1 : -1;
     for (const ring of rings) {
-      if (ring.caught) continue;
       const dx = Math.abs(ring.x - sourceX);
       const proximity = Math.exp(-(dx * dx) / (2 * 165 * 165));
       const height = .55 + .45 * (ring.y / H);
-      const force = proximity * height;
+      const force = proximity * height * (ring.caught ? .72 : 1);
       ring.vy = Math.max(-550, ring.vy - (480 + random(-18, 18)) * force);
       // Each jet drives across the tank, regardless of the nearest post.
       ring.vx = clamp(ring.vx + direction * (220 + random(-15, 15)) * force, -380, 380);
@@ -139,10 +211,13 @@
   }
 
   function catchRing(ring, post) {
+    if (ring.caught || (mode === 'color' && ring.color !== post.color)) return;
     ring.caught = true;
     ring.post = post;
     ring.slot = post.rings.length;
     ring.age = 0;
+    ring.vx *= .15;
+    ring.vy = Math.max(30, ring.vy * .4);
     post.rings.push(ring);
     caught++;
     updateScore();
@@ -150,15 +225,118 @@
     announce(caught === TOTAL ? 'All twelve rings aboard! You caught them all.' : `${caught} of twelve rings caught.`);
   }
 
+  function releaseRing(ring) {
+    const post = ring.post;
+    post.rings.splice(post.rings.indexOf(ring), 1);
+    post.rings.forEach((other, slot) => { other.slot = slot; });
+    ring.caught = false; ring.post = null; ring.age = 0;
+    ring.vx = clamp(ring.vx, -180, 180);
+    ring.spin += random(-2, 2);
+    caught--;
+    updateScore();
+    announce(`A ring slipped off! ${caught} of twelve rings caught.`);
+  }
+
+  function fishSpace() {
+    const width = tank.clientWidth || W, height = tank.clientHeight || H;
+    const scale = Math.max(width / 800, height / 500);
+    return { sx: width / W / scale, sy: height / H / scale, offsetX: (800 - width / scale) / 2, offsetY: (500 - height / scale) / 2 };
+  }
+
+  function fishHome(index) {
+    const space = fishSpace(), home = fishHomes[index];
+    return { x: (home.x - space.offsetX) / space.sx, y: (home.y - space.offsetY) / space.sy };
+  }
+
+  function moveFish(dt) {
+    const swimming = fishEnabled && roundState === 'running';
+    fishes.forEach((fish, index) => {
+      const home = fishHome(index);
+      fish.swimTime += dt;
+      fish.peck = Math.max(0, fish.peck - dt);
+      let desiredX = 0, desiredY = 0;
+      if (swimming) {
+        fish.cooldown -= dt;
+        fish.laneTime -= dt;
+        if (fish.laneTime <= 0) {
+          fish.cruiseY = random(65, H - 55);
+          fish.laneTime = random(4, 7);
+        }
+        if (fish.x < 55) fish.swimDirection = 1;
+        if (fish.x > W - 55) fish.swimDirection = -1;
+        if (fish.target) {
+          fish.chaseTime -= dt;
+          if (fish.chaseTime <= 0) { fish.target = null; fish.cooldown = random(3, 5); }
+        }
+        if (fish.cooldown <= 0 && !fish.target) {
+          // Investigate a nearby hoop, then go back to cruising across the tank.
+          fish.target = rings.reduce((nearest, ring) => Math.hypot(ring.x - fish.x, ring.y - fish.y) < Math.hypot(nearest.x - fish.x, nearest.y - fish.y) ? ring : nearest, rings[0]);
+          if (fish.target && Math.hypot(fish.target.x - fish.x, fish.target.y - fish.y) < 165) fish.chaseTime = 2.5;
+          else { fish.target = null; fish.cooldown = random(.8, 1.6); }
+        }
+        if (fish.target) {
+          const approach = Math.abs(fish.target.x - fish.x) > 25 ? Math.sign(fish.target.x - fish.x) : fish.facing;
+          desiredX = clamp((fish.target.x - approach * 19 - fish.x) * 3, -95, 95);
+          desiredY = clamp((fish.target.y - fish.y) * 3, -65, 65);
+        } else {
+          // Long sideways passes with independently changing depths and a small undulation.
+          desiredX = fish.swimDirection * (49 + index * 6 + Math.sin(fish.swimTime * 1.3 + fish.phase) * 7);
+          desiredY = clamp((fish.cruiseY - fish.y) * .65 + Math.sin(fish.swimTime * 1.8 + fish.phase) * 10, -24, 24);
+        }
+      } else {
+        fish.target = null;
+        desiredX = clamp((home.x - fish.x) * 2.5, -115, 115);
+        desiredY = clamp((home.y - fish.y) * 2.5, -85, 85);
+      }
+      // Steering has inertia, so turns and dives trace curves instead of straight darts.
+      const steering = 1 - Math.exp(-3.5 * dt);
+      fish.vx += (desiredX - fish.vx) * steering;
+      fish.vy += (desiredY - fish.vy) * steering;
+      fish.x += fish.vx * dt; fish.y += fish.vy * dt;
+      if (swimming) {
+        if (fish.x < 25) { fish.x = 25; fish.vx = Math.max(0, fish.vx); fish.swimDirection = 1; }
+        if (fish.x > W - 25) { fish.x = W - 25; fish.vx = Math.min(0, fish.vx); fish.swimDirection = -1; }
+        fish.y = clamp(fish.y, 35, H - 24);
+      }
+      if (Math.abs(fish.vx) > 5) fish.facing = Math.sign(fish.vx);
+      const atHome = !swimming && Math.hypot(fish.x - home.x, fish.y - home.y) < .3 && Math.hypot(fish.vx, fish.vy) < 1;
+      if (atHome) { fish.x = home.x; fish.y = home.y; fish.vx = fish.vy = 0; fish.facing = fishHomes[index].facing; }
+      fish.blend += ((atHome ? 0 : 1) - fish.blend) * (1 - Math.exp(-8 * dt));
+      fish.turn += (fish.facing / fishHomes[index].facing - fish.turn) * (1 - Math.exp(-9 * dt));
+      if (fish.target && Math.abs(fish.turn) > .7 && Math.hypot(fish.target.x - (fish.x + fish.facing * 19), fish.target.y - fish.y) < 9) {
+        const ring = fish.target;
+        ring.vx = clamp(ring.vx + fish.facing * random(42, 65), -380, 380);
+        ring.vy = Math.max(-550, ring.vy - random(65, 95));
+        ring.spin += fish.facing * 1.8;
+        fish.peck = .25;
+        fish.target = null;
+        fish.cooldown = random(4, 7);
+        fish.swimDirection = fish.facing;
+      }
+    });
+  }
+
   function step(dt) {
     tick += dt;
+    moveFish(dt);
+    if (roundState === 'ready') return;
     const gravity = tilt.sample(dt);
     for (const ring of rings) {
       if (ring.caught) {
         ring.age += dt;
         const targetY = H - 39 - ring.slot * 10;
-        ring.x += (ring.post.x - ring.x) * (1 - Math.exp(-10 * dt));
-        ring.y += (targetY - ring.y) * (1 - Math.exp(-5 * dt));
+        if (roundState === 'finished') {
+          ring.x += (ring.post.x - ring.x) * (1 - Math.exp(-10 * dt));
+          ring.y += (targetY - ring.y) * (1 - Math.exp(-5 * dt));
+        } else {
+          ring.vy = (ring.vy + gravity.y * dt) * Math.exp(-1.4 * dt);
+          ring.y += ring.vy * dt;
+          ring.vx *= Math.exp(-2 * dt);
+          ring.x = ring.post.x + clamp(ring.vx * .025, -4, 4);
+          if (ring.y >= targetY) { ring.y = targetY; ring.vy = Math.min(0, ring.vy); }
+          // The ring stays threaded until a jet lifts its center above the tip.
+          if (ring.y < ring.post.tip - 3 && ring.vy < 0) releaseRing(ring);
+        }
         ring.angle *= Math.exp(-9 * dt);
         continue;
       }
@@ -185,8 +363,13 @@
         // Crossing the tip while descending threads the open center of a hoop.
         // The tolerance is smaller than its hole; a side brush never counts.
         if (ring.vy > 0 && previousY <= post.tip && ring.y >= post.tip && Math.abs(ring.x - post.x) < 9.5 && Math.abs(ring.vx) < 110) {
-          catchRing(ring, post);
-          break;
+          if (mode !== 'color' || ring.color === post.color) {
+            catchRing(ring, post);
+            break;
+          }
+          // The wrong target deflects the hoop without adding to the score.
+          ring.x = post.x + (ring.vx < 0 ? -1 : 1) * (RADIUS + 4);
+          ring.vx = (ring.vx < 0 ? -1 : 1) * 45;
         }
         // A rising ring or a missed descending ring can glance off the stem.
         if (ring.y > post.tip + RADIUS && ring.y < H - 27 && Math.abs(ring.x - post.x) < RADIUS + 3) {
@@ -229,7 +412,7 @@
     bubbles = bubbles.filter(b => b.age < b.life && b.y > 0);
     pulses.forEach(p => { p.age += dt; });
     pulses = pulses.filter(p => p.age < .5);
-    if (caught === TOTAL && rings.every(r => r.age > .9)) $('win-message').hidden = false;
+    if (caught === TOTAL) finishRound();
   }
 
   function ellipse(x, y, rx, ry, fill) {
@@ -257,24 +440,43 @@
     ctx.restore();
   }
 
+  function renderFishArt() {
+    $('fish-art').style.display = scene.name === 'ocean' || fishEnabled ? '' : 'none';
+    const space = fishSpace();
+    fishes.forEach((fish, index) => {
+      const home = fishHomes[index];
+      const x = fish.x * space.sx + space.offsetX, y = fish.y * space.sy + space.offsetY;
+      const scale = home.scale * (1 - fish.blend * .22);
+      const stroke = Math.sin(fish.swimTime * 10 + fish.phase);
+      const pitch = clamp(Math.atan2(fish.vy, Math.max(25, Math.abs(fish.vx))) * 180 / Math.PI, -24, 24) * fish.facing;
+      const angle = home.angle * (1 - fish.blend) + (pitch + stroke * 1.5) * fish.blend;
+      const peck = fish.peck > 0 ? Math.sin(fish.peck / .25 * Math.PI) * 4 * fish.facing : 0;
+      $('fish-art-' + index).setAttribute('transform', `translate(${x + peck} ${y}) rotate(${angle}) scale(${scale * fish.turn} ${scale})`);
+      const tailBase = [-42, 53, -18][index];
+      $('fish-tail-' + index).setAttribute('transform', `translate(${tailBase} 0) rotate(${stroke * 12 * fish.blend}) scale(${1 - Math.abs(stroke) * .14 * fish.blend} 1) translate(${-tailBase} 0)`);
+    });
+  }
+
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
+    renderFishArt();
     for (const x of [130, 510]) {
       ellipse(x, H - 12, 19, 5, '#25778b42');
       ellipse(x, H - 14, 12, 3, '#07567560');
     }
     for (const post of posts) {
       ellipse(post.x, H - 23, 34, 9, '#395a6140');
-      ellipse(post.x, H - 28, 27, 9, '#da5784');
-      ellipse(post.x, H - 30, 24, 7, '#f28bad');
+      ellipse(post.x, H - 28, 27, 9, post.color || '#da5784');
+      ellipse(post.x, H - 30, 24, 7, post.color || '#f28bad');
       const gradient = ctx.createLinearGradient(post.x - 5, 0, post.x + 5, 0);
-      gradient.addColorStop(0, '#c54274'); gradient.addColorStop(.4, '#ffbbd0'); gradient.addColorStop(.65, '#f88aad'); gradient.addColorStop(1, '#be3b70');
+      gradient.addColorStop(0, post.color || '#c54274'); gradient.addColorStop(.4, post.color ? '#ffffff' : '#ffbbd0'); gradient.addColorStop(.65, post.color || '#f88aad'); gradient.addColorStop(1, post.color || '#be3b70');
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.moveTo(post.x - 5, H - 32); ctx.lineTo(post.x - 3.3, post.tip + 3);
       ctx.quadraticCurveTo(post.x, post.tip - 3, post.x + 3.3, post.tip + 3);
       ctx.lineTo(post.x + 5, H - 32); ctx.closePath(); ctx.fill();
+      if (post.color) ellipse(post.x, post.tip + 4, 7, 6, post.color);
     }
     for (const ring of rings.filter(r => r.caught)) drawRing(ring);
     for (const ring of rings.filter(r => !r.caught).sort((a, b) => a.y - b.y)) drawRing(ring);
@@ -297,10 +499,11 @@
     const elapsed = lastTime ? Math.min((time - lastTime) / 1000, .06) : 0;
     lastTime = time;
     if (!paused()) {
+      if (roundState === 'running') syncClock(time);
       accumulator += elapsed;
       while (accumulator >= 1 / 120) { step(1 / 120); accumulator -= 1 / 120; }
       draw();
-    } else accumulator = 0;
+    } else { accumulator = 0; clockAnchor = null; }
     animation = requestAnimationFrame(frame);
   }
 
@@ -330,7 +533,7 @@
     button.addEventListener('pointerdown', event => {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       event.preventDefault();
-      if (paused()) return;
+      if (paused() || roundState !== 'running') return;
       button.setPointerCapture(event.pointerId);
       pointers[side].add(event.pointerId);
       setPressed(side);
@@ -351,7 +554,7 @@
   });
 
   document.addEventListener('keydown', event => {
-    if (event.altKey || event.metaKey || event.ctrlKey || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || event.target.isContentEditable || paused()) return;
+    if (event.altKey || event.metaKey || event.ctrlKey || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || event.target.isContentEditable || paused() || roundState !== 'running') return;
     const sides = { a: 0, ArrowLeft: 0, d: 1, ArrowRight: 1 };
     const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
     if (!(key in sides)) return;
@@ -366,11 +569,88 @@
     keySides.delete(key); setPressed(side);
   });
   window.addEventListener('blur', releaseInputs);
-  document.addEventListener('visibilitychange', () => { releaseInputs(); lastTime = 0; if (!document.hidden) tilt.refresh(); });
+  document.addEventListener('visibilitychange', () => { pauseClock(); releaseInputs(); if (!document.hidden) tilt.refresh(); });
   sidewaysLayout.addEventListener('change', () => { releaseInputs(); lastTime = 0; tilt.refresh(); resize(); });
 
   $('restart').addEventListener('click', reset);
-  $('play-again').addEventListener('click', reset);
+  $('start-game').addEventListener('click', () => roundState === 'finished' ? reset() : startRound());
+  $('game-mode').addEventListener('change', event => {
+    if (roundState === 'running') return;
+    mode = event.target.value === 'color' ? 'color' : 'classic';
+    reset();
+  });
+  $('fish-toggle').addEventListener('click', () => {
+    if (roundState === 'running') return;
+    fishEnabled = !fishEnabled;
+    reset();
+  });
+
+  function validBoards(value) {
+    const cleaned = {};
+    for (const key of ['classic-calm', 'classic-fish', 'color-calm', 'color-fish']) {
+      cleaned[key] = (Array.isArray(value?.[key]) ? value[key] : [])
+        .filter(entry => entry && typeof entry.name === 'string' && entry.name.trim() && Number.isFinite(entry.ms) && entry.ms > 0)
+        .map(entry => ({ name: entry.name.trim().slice(0, 20), ms: entry.ms }))
+        .sort((a, b) => a.ms - b.ms).slice(0, 10);
+    }
+    return cleaned;
+  }
+
+  function renderLeaderboard() {
+    const colorBoard = selectedBoard.startsWith('color-'), fishBoard = selectedBoard.endsWith('-fish');
+    $('leaderboard-mode').dataset.challenge = selectedBoard;
+    $('board-classic').setAttribute('aria-pressed', String(!colorBoard));
+    $('board-color').setAttribute('aria-pressed', String(colorBoard));
+    $('board-fish').setAttribute('aria-pressed', String(fishBoard));
+    $('board-fish-text').textContent = fishBoard ? 'FISH ON · 3' : 'FISH OFF';
+    const entries = leaderboard[selectedBoard] || [];
+    const body = $('leaderboard-rows');
+    body.replaceChildren();
+    entries.forEach((entry, index) => {
+      const row = document.createElement('tr');
+      for (const value of [String(index + 1).padStart(2, '0'), entry.name, formatTime(entry.ms)]) {
+        const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
+      }
+      body.appendChild(row);
+    });
+    $('leaderboard-empty').hidden = entries.length > 0;
+  }
+  $('leaderboard-open').addEventListener('click', () => {
+    selectedBoard = boardKey(); renderLeaderboard(); openDialog(leaderboardDialog);
+  });
+  [['board-classic', 'classic'], ['board-color', 'color']].forEach(([id, boardMode]) => {
+    $(id).addEventListener('click', () => {
+      selectedBoard = `${boardMode}-${selectedBoard.endsWith('-fish') ? 'fish' : 'calm'}`;
+      renderLeaderboard();
+    });
+  });
+  $('board-fish').addEventListener('click', () => {
+    selectedBoard = `${selectedBoard.startsWith('color-') ? 'color' : 'classic'}-${selectedBoard.endsWith('-fish') ? 'calm' : 'fish'}`;
+    renderLeaderboard();
+  });
+  $('close-leaderboard').addEventListener('click', () => leaderboardDialog.close());
+  $('score-entry').addEventListener('submit', event => {
+    event.preventDefault();
+    const name = $('player-name').value.trim().slice(0, 20);
+    if (!roundResult || roundResult.saved) return;
+    if (!name) { $('score-feedback').textContent = 'Enter your name first.'; $('player-name').focus(); return; }
+    // Merge any scores saved in another tab before adding this finished round.
+    try { leaderboard = validBoards(JSON.parse(localStorage.getItem(leaderboardKey)) || leaderboard); } catch { /* Keep in-memory scores. */ }
+    const entries = leaderboard[roundResult.key] || [];
+    const entry = { name, ms: roundResult.ms };
+    entries.push(entry);
+    entries.sort((a, b) => a.ms - b.ms);
+    const rank = entries.indexOf(entry) + 1;
+    leaderboard[roundResult.key] = entries.slice(0, 10);
+    let persisted = true;
+    try { localStorage.setItem(leaderboardKey, JSON.stringify(leaderboard)); } catch { persisted = false; }
+    roundResult.saved = true;
+    $('save-time').disabled = true;
+    $('save-time').textContent = 'SAVED';
+    const message = rank > 10 ? 'Outside the fastest 10. Try another round!' : !persisted ? 'Saved for this visit; device storage is unavailable.' : `Saved · #${rank} on this device.`;
+    $('score-feedback').textContent = message;
+    announce(message);
+  });
   $('sound').addEventListener('click', () => {
     soundEnabled = !soundEnabled;
     $('sound').setAttribute('aria-pressed', String(soundEnabled));
@@ -380,7 +660,7 @@
     try { localStorage.setItem('aqua-sound', String(soundEnabled)); } catch { /* Storage is optional. */ }
   });
 
-  function openDialog(dialog) { releaseInputs(); dialog.showModal(); renderScene(); }
+  function openDialog(dialog) { pauseClock(); releaseInputs(); dialog.showModal(); renderScene(); }
   $('backgrounds').addEventListener('click', () => openDialog(sceneDialog));
   $('close-scenes').addEventListener('click', () => sceneDialog.close());
   $('done-scenes').addEventListener('click', () => sceneDialog.close());
@@ -393,7 +673,7 @@
   function updateTiltUI() {
     $('tilt-control').setAttribute('aria-pressed', String(tilt.ready));
     $('tilt-label').textContent = tilt.ready ? 'TILT ON' : tilt.enabled ? 'TILT WAIT' : tiltPromptPending ? 'ENABLE TILT' : 'TILT OFF';
-    $('water-status').textContent = tilt.ready ? 'TILT TO STEER' : 'TAKE IT SLOW.';
+    updateRoundUI();
     $('enable-tilt').hidden = tilt.enabled;
     $('enable-tilt').disabled = tilt.requesting;
     $('enable-tilt').textContent = tilt.requesting ? 'Waiting for permission…' : 'Enable phone tilt →';
@@ -460,7 +740,7 @@
   fullscreenMode.addEventListener('change', updateScreenMode);
   updateScreenMode();
 
-  [sceneDialog, helpDialog, installDialog, tiltDialog].forEach(dialog => {
+  [sceneDialog, helpDialog, installDialog, tiltDialog, leaderboardDialog].forEach(dialog => {
     let downOutside = false;
     const outside = event => {
       const rect = dialog.getBoundingClientRect();
@@ -481,7 +761,7 @@
     const isPhoto = scene.name === 'photo' && photoURL;
     const source = isPhoto ? photoURL : sceneImages[scene.name] || sceneImages.ocean;
     for (const element of [$('tank-art'), $('scene-preview')]) {
-      element.style.backgroundImage = `url("${source}")`;
+      element.style.backgroundImage = `url("${element === $('tank-art') && scene.name === 'ocean' ? 'assets/ocean-water.svg' : source}")`;
       if (isPhoto) {
         const size = sceneDimensions(element);
         element.style.backgroundSize = `${size.width}px ${size.height}px`;
@@ -503,6 +783,7 @@
     $('zoom-value').textContent = `${scene.zoom.toFixed(1)}×`;
     $('position-x').value = scene.x;
     $('position-y').value = scene.y;
+    renderFishArt();
   }
 
   function persistScene() {
@@ -585,6 +866,10 @@
   });
 
   try {
+    leaderboard = validBoards(JSON.parse(localStorage.getItem(leaderboardKey)));
+  } catch { leaderboard = validBoards(null); }
+
+  try {
     const saved = JSON.parse(localStorage.getItem('aqua-scene'));
     if (saved && ['ocean', 'sunset', 'space', 'photo'].includes(saved.name)) {
       if (typeof saved.photoURL === 'string' && saved.photoURL.startsWith('data:image/')) photoURL = saved.photoURL;
@@ -610,7 +895,7 @@
     } else tilt.start();
   }
   animation = requestAnimationFrame(frame);
-  window.addEventListener('pagehide', () => { cancelAnimationFrame(animation); releaseInputs(); tilt.stop(); });
+  window.addEventListener('pagehide', () => { pauseClock(); cancelAnimationFrame(animation); releaseInputs(); tilt.stop(); });
   window.addEventListener('pageshow', event => { if (event.persisted) { lastTime = 0; animation = requestAnimationFrame(frame); } });
   if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker.register('sw.js').catch(() => { /* Offline install is optional. */ });

@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ych-theme.css">
   <link rel="stylesheet" href="toolbar.css">
+  <link rel="stylesheet" href="round.css">
   <script src="tilt.js" defer></script>
   <script src="app.js" defer></script>
 </head>
@@ -31,6 +32,26 @@
         <button type="button" class="toolbar-control" id="fullscreen" aria-label="Full screen or browser display options"><span class="toolbar-icon" aria-hidden="true">⛶</span><span id="fullscreen-label">FULL SCREEN</span></button>
       </nav>
     </header>
+
+    <div class="round-bar" aria-label="Round controls">
+      <div class="round-options" id="round-options">
+        <label class="sr-only" for="game-mode">Game mode</label>
+        <select id="game-mode" class="round-control"><option value="classic">CLASSIC</option><option value="color">COLOR MATCH</option></select>
+        <button type="button" class="round-control" id="fish-toggle" aria-pressed="false" title="Bring the three background fish to life to peck and nudge the rings">FISH OFF</button>
+        <span class="round-hint">Pick your challenge. Beat your time.</span>
+      </div>
+      <form id="score-entry" class="score-entry" hidden>
+        <label class="sr-only" for="player-name">Your leaderboard name</label>
+        <input id="player-name" class="round-control" name="name" placeholder="YOUR NAME" maxlength="20" autocomplete="nickname" required>
+        <button type="submit" id="save-time" class="round-control">SAVE</button>
+        <span id="score-feedback" role="status"></span>
+      </form>
+      <div class="round-actions">
+        <div class="round-clock"><span id="timer-label">READY</span><output id="timer" aria-label="Completion time">00:00.00</output></div>
+        <button type="button" class="round-control" id="start-game">START</button>
+        <button type="button" class="round-control" id="leaderboard-open" aria-label="View time leaderboards">TIMES ↗</button>
+      </div>
+    </div>
 
     <section class="play-area" aria-label="Water ring-toss game">
       <div class="game-heading"><div><span class="game-index">01 ↳ THE GOOD OLD DAYS</span><h1>Small toy. Big nostalgia.</h1></div><span class="game-sticker">NO BATTERIES.<br>JUST GOOD VIBES.</span></div>
@@ -52,10 +73,14 @@
               <div class="tank" id="tank">
                 <div class="tank-art" id="tank-art"></div>
                 <div class="water-tint" aria-hidden="true"></div>
+                <svg id="fish-art" class="fish-art" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<g id="fish-art-0"><path id="fish-tail-0" d="M-42 0L-81-34Q-86 0-80 30Z" fill="#f39076"/><ellipse rx="62" ry="49" fill="#ffb395"/><path d="M-15-43Q-22-73 11-62L28-40" fill="#f3947b"/><path d="M-12 42Q4 65 24 43" fill="#f3947b"/><path d="M-24-39Q-6 0-24 39M-6-43Q12 0-6 43" stroke="#ffe0b9" stroke-width="9" fill="none"/><ellipse cx="31" cy="-9" rx="15" ry="18" fill="#fff8db"/><ellipse cx="35" cy="-7" rx="8" ry="11" fill="#29576a"/><circle cx="37" cy="-11" r="3" fill="#fff"/><path d="M39 17Q49 23 54 13" fill="none" stroke="#bb6963" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="29" cy="18" rx="8" ry="4" fill="#ee8a7c"/><path d="M-6 1Q-35-13-29 14Q-14 18-6 1" fill="#f09477"/></g>
+<g id="fish-art-1"><path id="fish-tail-1" d="M53 2L92-35Q99 2 91 36Z" fill="#497fba"/><ellipse rx="67" ry="54" fill="#769dce"/><path d="M-16-47Q6-85 35-50M-3 47Q19 67 32 46" fill="#547fb6"/><path d="M10-47Q-6 0 15 48" stroke="#a5c3da" stroke-width="13" fill="none"/><ellipse cx="-35" cy="-9" rx="16" ry="20" fill="#fff8db"/><ellipse cx="-40" cy="-7" rx="8" ry="11" fill="#29576a"/><circle cx="-42" cy="-12" r="3" fill="#fff"/><path d="M-54 15Q-46 25-34 20" fill="none" stroke="#3e6898" stroke-width="2.5" stroke-linecap="round"/><path d="M12 8Q48-16 39 15Q26 24 12 8" fill="#547fb6"/><ellipse cx="-25" cy="21" rx="9" ry="4" fill="#aeafd1"/></g>
+<g id="fish-art-2"><path id="fish-tail-2" d="M-18 0L-35-13V13Z" fill="#e6aa45"/><ellipse rx="28" ry="20" fill="#ffe391"/><path d="M-5-17V17" stroke="#f9bc64" stroke-width="7"/><circle cx="15" cy="-4" r="5" fill="#fff8df"/><circle cx="17" cy="-4" r="2.5" fill="#305970"/></g>
+</svg>
                 <canvas id="game" role="img" aria-label="Twelve colorful rings floating in water. Use the left and right pumps to lift them onto the three pink posts."></canvas>
                 <div class="tank-hud"><span class="hud-label">RINGS <strong id="score">00<span> / 12</span></strong></span><span class="water-label" id="water-status">TAKE IT SLOW.</span></div>
                 <div class="glass" aria-hidden="true"></div>
-                <div class="win-message" id="win-message" hidden><span class="win-eyebrow">12 / 12 · YOU DID THAT</span><strong>Small toy. Big win!</strong><button type="button" id="play-again">One more round ↻</button></div>
               </div>
             </div>
             <div class="machine-brand" aria-hidden="true"><span>YCH<span class="brand-dot">✳</span></span><div>POCKET<br><b>WATER GAME</b></div></div>
@@ -69,12 +94,23 @@
           </div>
         </div>
       </div>
-      <div class="play-caption"><span>Two thumbs. Twelve rings. No rush.</span><span class="keyboard-hint"><kbd>A</kbd><kbd>D</kbd> or tap the yellow buttons</span></div>
+      <div class="play-caption"><span>Twelve rings. One clock. Make every push count.</span><span class="keyboard-hint"><kbd>A</kbd><kbd>D</kbd> or tap the yellow buttons</span></div>
     </section>
 
     <footer class="page-footer"><span>YCH PLAY DEPT. / EST. IN YOUR CHILDHOOD.</span><button type="button" id="how-to">How to play <span aria-hidden="true">↗</span></button></footer>
     <span class="sr-only" id="announcement" role="status" aria-live="polite"></span>
   </main>
+
+  <dialog id="leaderboard-dialog" class="leaderboard-dialog" aria-labelledby="leaderboard-title">
+    <div class="dialog-heading"><div><span class="eyebrow">A LITTLE FRIENDLY COMPETITION</span><h2 id="leaderboard-title">Fastest in the water.</h2></div><button type="button" class="close-button" id="close-leaderboard" aria-label="Close leaderboards">×</button></div>
+    <div class="leaderboard-filters" id="leaderboard-mode" data-challenge="classic-calm">
+      <div class="board-mode-group"><span class="filter-label" id="board-mode-label">GAME MODE</span><div class="mode-segments" role="group" aria-labelledby="board-mode-label"><button type="button" class="mode-segment" id="board-classic" aria-pressed="true">CLASSIC</button><button type="button" class="mode-segment" id="board-color" aria-pressed="false">COLOR MATCH</button></div></div>
+      <div class="board-fish-group"><span class="filter-label" id="board-fish-label">EXTRA CHALLENGE</span><button type="button" class="board-fish-toggle" id="board-fish" aria-pressed="false" aria-describedby="board-fish-label"><span class="toggle-track" aria-hidden="true"></span><span id="board-fish-text">FISH OFF</span></button></div>
+    </div>
+    <p class="leaderboard-note">Fastest 10 on this device. Each challenge has its own board. Finish a round, then enter your name to save a time.</p>
+    <table class="leaderboard-table"><caption class="sr-only">Completion times, fastest first</caption><thead><tr><th scope="col">#</th><th scope="col">NAME</th><th scope="col">TIME</th></tr></thead><tbody id="leaderboard-rows"></tbody></table>
+    <p id="leaderboard-empty">No times yet. Set the first one.</p>
+  </dialog>
 
   <dialog id="scene-dialog" class="scene-dialog" aria-labelledby="scene-title">
     <div class="dialog-heading"><div><span class="eyebrow">YOUR OWN LITTLE WORLD</span><h2 id="scene-title">A change of scenery.</h2></div><button type="button" class="close-button" id="close-scenes" aria-label="Close background settings">×</button></div>
@@ -91,7 +127,7 @@
     </div>
   </dialog>
 
-  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Press the left yellow button to push rings up and right; the right button pushes up and left. Let the heavier rings sink onto any of the three pink posts. Catch all twelve.</p><p>Use both thumbs on a phone, or <kbd>A</kbd> / <kbd>D</kbd> and the arrow keys on a keyboard. Each press gives one little push.</p><p>Tap <b>TILT</b> for gravity play: hold the phone sideways, enable motion, then steer like a racing game. Rings follow real gravity: lower the top edge to lift them, then lower the bottom edge to let them settle. The pumps still work.</p><p>Use the toolbar above the toy to change the <b>SCENE</b>, toggle <b>SOUND</b>, or <b>RESET</b> for a fresh handful of rings.</p><div class="install-tip"><b>Make it a pocket toy.</b><span>On iPhone, open in Safari, tap Share, then Add to Home Screen. Launch YCH Pocket from its new Home Screen icon and turn your phone sideways.</span></div><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
+  <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">JUST LIKE YOU REMEMBER</span><h2 id="help-title">A push. A drift. A little luck.</h2></div><button type="button" class="close-button" id="close-help" aria-label="Close instructions">×</button></div><p>Choose <b>Classic</b> or <b>Color Match</b>, then press <b>START</b> to begin the timer. Classic accepts rings on any pink post. Color Match only counts a ring on its same-colored post.</p><p>Press the left yellow button to push rings up and right; the right pushes up and left. Use both thumbs, <kbd>A</kbd> / <kbd>D</kbd>, or the arrow keys. Caught rings can slide up and blow off a post, reducing your score!</p><p>Turn <b>FISH ON</b> before starting to bring the three background fish to life. They swim left and right, rise and dive, and occasionally peck rings. When the round stops, they return and blend back into the scenery. Mode and fish settings stay fixed during a round; <b>RESET</b> returns to setup.</p><p>Catch all twelve at once to stop the timer. Your final scene stays visible. Enter your name above the toy and tap <b>SAVE</b>, then open <b>TIMES</b> to see the fastest ten on this device. Each mode and fish setting has a separate board. The timer pauses while settings are open or the page is hidden.</p><p>Tap <b>TILT</b> to steer with real gravity. Lower the top edge to lift rings and the bottom edge to settle them. Change the <b>SCENE</b> or toggle <b>SOUND</b> above the toy.</p><button type="button" class="done-button" id="got-it">Let’s play →</button></dialog>
 
   <dialog id="tilt-dialog" class="help-dialog tilt-dialog" aria-labelledby="tilt-title">
     <div class="dialog-heading"><div><span class="eyebrow">A LITTLE TWIST. A LITTLE GRAVITY.</span><h2 id="tilt-title">Steer the water.</h2></div><button type="button" class="close-button" id="close-tilt" aria-label="Close tilt controls">×</button></div>
@@ -99,7 +135,7 @@
     <p id="tilt-status" class="tilt-status" role="status" aria-live="polite">Hold your phone sideways and enable tilt. No calibration needed.</p>
     <button type="button" class="done-button" id="enable-tilt">Enable phone tilt →</button>
     <div class="tilt-actions"><button type="button" class="motion-button" id="disable-tilt" hidden>Turn tilt off</button></div>
-    <p class="motion-note">Allow motion access if your phone asks. No installation needed. The yellow pumps work in both modes, and caught rings stay on their posts.</p>
+    <p class="motion-note">Allow motion access if your phone asks. No installation needed. The yellow pumps work in both modes. Caught rings can lift off their posts while the round is running.</p>
     <button type="button" class="done-button" id="done-tilt">Back to the water →</button>
   </dialog>
 

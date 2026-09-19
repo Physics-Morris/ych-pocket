@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YCH · Browser checks</title><style>body{margin:24px;background:#efebe0;color:#161512;font:14px monospace}h1{font:900 25px Arial}button{padding:10px;border:2px solid #161512;background:#c4e70c;margin:0 8px 12px 0;font:inherit;cursor:pointer}#viewport{overflow:hidden;max-width:100%;border:2px solid #161512;margin:20px 0}iframe{display:block;border:0;transform-origin:top left}li{margin:7px 0}.fail{color:#aa2222}.pass{color:#17603d}</style><h1>YCH · Browser checks</h1><p id="status">Running real-browser checks…</p><div><button id="landscape">844 × 390 landscape</button><button id="compact">667 × 375 landscape</button><button id="short">844 × 290 with toolbar</button><button id="portrait">390 × 844 portrait</button></div><div id="viewport"><iframe id="app" src="../" title="YCH device preview"></iframe></div><ol id="results"></ol><script>
+<!doctype html><html lang="en"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YCH · Browser checks</title><style>body{margin:24px;background:#efebe0;color:#161512;font:14px monospace}h1{font:900 25px Arial}button{padding:10px;border:2px solid #161512;background:#c4e70c;margin:0 8px 12px 0;font:inherit;cursor:pointer}#viewport{overflow:hidden;max-width:100%;border:2px solid #161512;margin:20px 0}iframe{display:block;border:0;transform-origin:top left}li{margin:7px 0}.fail{color:#aa2222}.pass{color:#17603d}</style><h1>YCH · Browser checks</h1><p id="status">Running real-browser checks…</p><div><button id="landscape">844 × 390 landscape</button><button id="compact">667 × 375 landscape</button><button id="short">844 × 290 with toolbar</button><button id="portrait">390 × 844 portrait</button></div><div id="viewport"><iframe id="app" title="YCH device preview"></iframe></div><ol id="results"></ol><script>
 const frame = document.getElementById('app'), viewport = document.getElementById('viewport'), results = document.getElementById('results');
 let current = [844,390], failures = 0;
 function fit(){const scale=Math.min(1,(document.documentElement.clientWidth-52)/current[0]);frame.style.width=current[0]+'px';frame.style.height=current[1]+'px';frame.style.transform=`scale(${scale})`;viewport.style.width=(current[0]*scale)+'px';viewport.style.height=(current[1]*scale)+'px'}
@@ -9,17 +9,18 @@ for(const [id,w,h] of [['landscape',844,390],['compact',667,375],['short',844,29
 window.addEventListener('resize',fit);fit();
 frame.onload=async()=>{try{
  const doc=frame.contentDocument,win=frame.contentWindow;
+ if(!doc.querySelector('#game'))return;
  // The default iPhone-style permission guide is intentionally modal before play.
  if(doc.querySelector('#tilt-dialog').open){check('Default gravity setup is shown before play',doc.querySelector('#tilt-dialog').textContent.includes('On by default'));doc.querySelector('#done-tilt').click();await paint()}
  for(const [w,h] of [[844,390],[852,393],[667,375],[844,290],[667,260],[390,844],[375,667],[320,568],[430,932]]){
   await size(w,h);
   const shell=doc.querySelector('.shell').getBoundingClientRect();
-  const buttons=[...doc.querySelectorAll('.pump,.toolbar-control')].filter(b=>!b.hidden);
+  const buttons=[...doc.querySelectorAll('.pump,.toolbar-control,.round-bar .round-control')].filter(b=>b.getClientRects().length);
   const controls=buttons.map(e=>e.getBoundingClientRect());
   check(`${w}×${h}: no page overflow`,doc.documentElement.scrollWidth<=w+1 && doc.documentElement.scrollHeight<=h+1);
   check(`${w}×${h}: every control ≥44px and inside the viewport`,controls.every(r=>r.width>=43.5&&r.height>=43.5&&r.left>=0&&r.right<=w&&r.top>=0&&r.bottom<=h));
   check(`${w}×${h}: utility controls sit outside the toy and remain tappable`,buttons.filter(b=>b.classList.contains('toolbar-control')).every(b=>{const r=b.getBoundingClientRect();return (w>=h?r.bottom<shell.top:r.left>shell.right)&&[[r.left+7,r.top+7],[r.right-7,r.top+7],[r.left+7,r.bottom-7],[r.right-7,r.bottom-7]].every(([x,y])=>b.contains(doc.elementFromPoint(x,y)))}));
-  check(`${w}×${h}: tank visible, no portrait overlay`,doc.querySelector('#tank').clientHeight>120 && !doc.querySelector('#rotate-screen'));
+  check(`${w}×${h}: tank visible (${doc.querySelector("#tank").clientHeight}px), no portrait overlay`,doc.querySelector('#tank').clientHeight>120 && !doc.querySelector('#rotate-screen'));
  }
  await size(390,844);
  check('Upright browser shows the landscape game immediately',win.getComputedStyle(doc.querySelector('.app')).visibility==='visible'&&doc.querySelector('.app').clientWidth>doc.querySelector('.app').clientHeight&&!doc.querySelector('#rotate-screen'));
@@ -56,6 +57,17 @@ frame.onload=async()=>{try{
  doc.querySelector('#done-tilt').click();
  if(sensorDescriptor)Object.defineProperty(win,'DeviceOrientationEvent',sensorDescriptor);else delete win.DeviceOrientationEvent;
  check('Scene preview shows three catching posts',doc.querySelectorAll('.preview-post').length===3);
+ check('Round starts ready, with an idle timer and disabled pumps',doc.querySelector('#timer').textContent==='00:00.00'&&doc.querySelector('#pump-left').disabled);
+ doc.querySelector('#game-mode').value='color';doc.querySelector('#game-mode').dispatchEvent(new win.Event('change'));
+ doc.querySelector('#fish-toggle').click();
+ check('Color Match and three fish can be selected before starting',doc.querySelector('#game').getAttribute('aria-label').includes('same-colored')&&doc.querySelector('#fish-toggle').getAttribute('aria-pressed')==='true');
+ doc.querySelector('#start-game').click();await paint();await paint();
+ check('Start enables pumps, starts the clock and locks the challenge',!doc.querySelector('#pump-left').disabled&&doc.querySelector('#timer').textContent!=='00:00.00'&&doc.querySelector('#game-mode').disabled&&doc.querySelector('#fish-toggle').disabled);
+ doc.querySelector('#leaderboard-open').click();await paint();
+ const stoppedTime=doc.querySelector('#timer').textContent;await paint();await paint();
+ check('Times opens the selected board and pauses the timer',doc.querySelector('#leaderboard-dialog').open&&doc.querySelector('#leaderboard-mode').dataset.challenge==='color-fish'&&doc.querySelector('#timer').textContent===stoppedTime);
+ doc.querySelector('#close-leaderboard').click();doc.querySelector('#restart').click();
+ doc.querySelector('#game-mode').value='classic';doc.querySelector('#game-mode').dispatchEvent(new win.Event('change'));doc.querySelector('#fish-toggle').click();
  await size(844,390);
  doc.querySelector('#sound').click();check('Toolbar sound control still works',doc.querySelector('#sound').getAttribute('aria-pressed')==='true');doc.querySelector('#sound').click();
  doc.querySelector('#backgrounds').click();await paint();
@@ -83,7 +95,32 @@ frame.onload=async()=>{try{
  doc.querySelector('[data-scene="ocean"]').click();doc.querySelector('#done-scenes').click();
  check('Closing settings resumes game',!dialog.open);
  doc.querySelector('#restart').click();check('Reset returns score to zero',doc.querySelector('#score').textContent.startsWith('00'));
+
+ const savedTimes=win.localStorage.getItem('ych-times-v1');
+ doc.querySelector('#game-mode').value='color';doc.querySelector('#game-mode').dispatchEvent(new win.Event('change'));doc.querySelector('#fish-toggle').click();doc.querySelector('#start-game').click();
+ const game=win.testGame;
+ for(const ring of game.rings){const post=game.posts.find(p=>p.color===ring.color);Object.assign(ring,{x:post.x,y:post.tip-.3,vx:0,vy:80});game.step(1/120)}
+ for(let i=0;i<240;i++)game.step(1/120);
+ await paint();
+ check('Finishing shows name entry and the final tank without a win overlay',doc.querySelector('#timer-label').textContent==='FINISHED'&&!doc.querySelector('#score-entry').hidden&&!doc.querySelector('#win-message')&&doc.querySelector('#score').textContent.startsWith('12'));
+ const finishedTime=doc.querySelector('#timer').textContent;await paint();await paint();
+ check('Finished time is frozen and pumps stop disturbing the final scene',doc.querySelector('#timer').textContent===finishedTime&&doc.querySelector('#pump-left').disabled&&doc.querySelector('#pump-right').disabled);
+ for(const [w,h] of [[844,390],[667,260],[320,568]]){
+  await size(w,h);const tank=doc.querySelector('#tank').getBoundingClientRect(),form=doc.querySelector('#score-entry').getBoundingClientRect();
+  check(`${w}×${h}: name entry stays outside the final tank`,w>=h?form.bottom<tank.top:form.left>tank.right);
+  check(`${w}×${h}: finished controls fit and stay tappable`,[...doc.querySelectorAll('.round-bar .round-control')].filter(b=>b.getClientRects().length).every(b=>{const r=b.getBoundingClientRect();return r.width>=43.5&&r.height>=43.5&&r.left>=0&&r.right<=w&&r.top>=0&&r.bottom<=h}));
+ }
+ doc.querySelector('#player-name').value='Browser QA';doc.querySelector('#save-time').click();doc.querySelector('#leaderboard-open').click();await paint();
+ check('Saving a completed round displays its name and time on its challenge board',doc.querySelector('#save-time').disabled&&doc.querySelector('#leaderboard-mode').dataset.challenge==='color-fish'&&doc.querySelector('#leaderboard-rows').textContent.includes('Browser QA'));
+ doc.querySelector('#close-leaderboard').click();
+ if(savedTimes===null)win.localStorage.removeItem('ych-times-v1');else win.localStorage.setItem('ych-times-v1',savedTimes);
  win.localStorage.removeItem('ych-tilt-enabled');
  await size(844,390);document.getElementById('status').textContent=failures?`${failures} checks failed.`:'All browser checks passed. Select a size to inspect the real layout.';
  }catch(error){check('Browser test execution: '+error.message,false);document.getElementById('status').textContent='Browser checks stopped: '+error.message}};
+// Instrument only the test iframe so completion can be checked deterministically.
+(async()=>{
+ const [html,source]=await Promise.all([fetch('../index.html').then(r=>r.text()),fetch('../app.js').then(r=>r.text())]);
+ const instrumented=source.replace(/\}\)\(\);\s*$/, 'window.testGame={step,get rings(){return rings},posts};})();');
+ frame.srcdoc=html.replace('<head>','<head><base href="../">').replace('<script src="tilt.js" defer>','<script src="tilt.js">').replace('<script src="app.js" defer></'+'script>','<script>window.addEventListener("DOMContentLoaded",()=>{'+instrumented+'});</'+'script>');
+})().catch(error=>{document.getElementById('status').textContent='Could not load test fixture: '+error.message});
 </script></html>
